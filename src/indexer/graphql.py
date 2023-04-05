@@ -102,6 +102,69 @@ def serialize_material(value):
     return config.MATERIALS.get(felt)
 
 
+def parse_item_type(value):
+    felt = get_key_by_value(value, config.ITEM_TYPES)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_item_type(value):
+    felt = int.from_bytes(value, "big")
+    return config.ITEM_TYPES.get(felt)
+
+
+def parse_name_prefixes(value):
+    felt = get_key_by_value(value, config.ITEM_NAME_PREFIXES)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_name_prefixes(value):
+    felt = int.from_bytes(value, "big")
+    if felt == 0:
+        return None
+    else:
+        return config.ITEM_NAME_PREFIXES.get(felt)
+
+
+def parse_name_suffixes(value):
+    felt = get_key_by_value(value, config.ITEM_NAME_SUFFIXES)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_name_suffixes(value):
+    felt = int.from_bytes(value, "big")
+    return config.ITEM_NAME_SUFFIXES.get(felt)
+
+
+def parse_suffixes(value):
+    felt = get_key_by_value(value, config.ITEM_SUFFIXES)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_suffixes(value):
+    felt = int.from_bytes(value, "big")
+    return config.ITEM_SUFFIXES.get(felt)
+
+
+def parse_status(value):
+    felt = get_key_by_value(value, config.STATUS)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_status(value):
+    felt = int.from_bytes(value, "big")
+    return config.STATUS.get(felt)
+
+
+def parse_slot(value):
+    felt = get_key_by_value(value, config.SLOTS)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_slot(value):
+    felt = int.from_bytes(value, "big")
+    return config.SLOTS.get(felt)
+
+
 HexValue = strawberry.scalar(
     NewType("HexValue", bytes), parse_value=parse_hex, serialize=serialize_hex
 )
@@ -146,6 +209,42 @@ MaterialValue = strawberry.scalar(
     NewType("MaterialValue", bytes),
     parse_value=parse_material,
     serialize=serialize_material,
+)
+
+TypeValue = strawberry.scalar(
+    NewType("TypeValue", bytes),
+    parse_value=parse_item_type,
+    serialize=serialize_item_type,
+)
+
+NamePrefixValue = strawberry.scalar(
+    NewType("NamePrefixValue", bytes),
+    parse_value=parse_name_prefixes,
+    serialize=serialize_name_prefixes,
+)
+
+NameSuffixValue = strawberry.scalar(
+    NewType("NameSuffixValue", bytes),
+    parse_value=parse_name_suffixes,
+    serialize=serialize_name_suffixes,
+)
+
+SuffixValue = strawberry.scalar(
+    NewType("SuffixValue", bytes),
+    parse_value=parse_suffixes,
+    serialize=serialize_suffixes,
+)
+
+StatusValue = strawberry.scalar(
+    NewType("StatusValue", bytes),
+    parse_value=parse_status,
+    serialize=serialize_status,
+)
+
+SlotValue = strawberry.scalar(
+    NewType("SlotValue", bytes),
+    parse_value=parse_slot,
+    serialize=serialize_slot,
 )
 
 
@@ -286,6 +385,90 @@ class MaterialFilter:
 
 
 @strawberry.input
+class TypeFilter:
+    eq: Optional[TypeValue] = None
+    _in: Optional[List[TypeValue]] = None
+    notIn: Optional[TypeValue] = None
+    lt: Optional[TypeValue] = None
+    lte: Optional[TypeValue] = None
+    gt: Optional[TypeValue] = None
+    gte: Optional[TypeValue] = None
+    contains: Optional[TypeValue] = None
+    startsWith: Optional[TypeValue] = None
+    endsWith: Optional[TypeValue] = None
+
+
+@strawberry.input
+class NamePrefixFilter:
+    eq: Optional[NamePrefixValue] = None
+    _in: Optional[List[NamePrefixValue]] = None
+    notIn: Optional[NamePrefixValue] = None
+    lt: Optional[NamePrefixValue] = None
+    lte: Optional[NamePrefixValue] = None
+    gt: Optional[NamePrefixValue] = None
+    gte: Optional[NamePrefixValue] = None
+    contains: Optional[NamePrefixValue] = None
+    startsWith: Optional[NamePrefixValue] = None
+    endsWith: Optional[NamePrefixValue] = None
+
+
+@strawberry.input
+class NameSuffixFilter:
+    eq: Optional[NameSuffixValue] = None
+    _in: Optional[List[NameSuffixValue]] = None
+    notIn: Optional[NameSuffixValue] = None
+    lt: Optional[NameSuffixValue] = None
+    lte: Optional[NameSuffixValue] = None
+    gt: Optional[NameSuffixValue] = None
+    gte: Optional[NameSuffixValue] = None
+    contains: Optional[NameSuffixValue] = None
+    startsWith: Optional[NameSuffixValue] = None
+    endsWith: Optional[NameSuffixValue] = None
+
+
+@strawberry.input
+class SuffixFilter:
+    eq: Optional[SuffixValue] = None
+    _in: Optional[List[SuffixValue]] = None
+    notIn: Optional[SuffixValue] = None
+    lt: Optional[SuffixValue] = None
+    lte: Optional[SuffixValue] = None
+    gt: Optional[SuffixValue] = None
+    gte: Optional[SuffixValue] = None
+    contains: Optional[SuffixValue] = None
+    startsWith: Optional[SuffixValue] = None
+    endsWith: Optional[SuffixValue] = None
+
+
+@strawberry.input
+class StatusFilter:
+    eq: Optional[StatusValue] = None
+    _in: Optional[List[StatusValue]] = None
+    notIn: Optional[StatusValue] = None
+    lt: Optional[StatusValue] = None
+    lte: Optional[StatusValue] = None
+    gt: Optional[StatusValue] = None
+    gte: Optional[StatusValue] = None
+    contains: Optional[StatusValue] = None
+    startsWith: Optional[StatusValue] = None
+    endsWith: Optional[StatusValue] = None
+
+
+@strawberry.input
+class SlotFilter:
+    eq: Optional[SlotValue] = None
+    _in: Optional[List[SlotValue]] = None
+    notIn: Optional[SlotValue] = None
+    lt: Optional[SlotValue] = None
+    lte: Optional[SlotValue] = None
+    gt: Optional[SlotValue] = None
+    gte: Optional[SlotValue] = None
+    contains: Optional[SlotValue] = None
+    startsWith: Optional[SlotValue] = None
+    endsWith: Optional[SlotValue] = None
+
+
+@strawberry.input
 class OrderByInput:
     asc: Optional[bool] = False
     desc: Optional[bool] = False
@@ -295,10 +478,10 @@ class OrderByInput:
 class AdventurersFilter:
     id: Optional[FeltValueFilter] = None
     owner: Optional[HexValueFilter] = None
-    race: Optional[StringFilter] = None
+    race: Optional[RaceFilter] = None
     birthdate: Optional[DateTimeFilter] = None
     name: Optional[StringFilter] = None
-    order: Optional[StringFilter] = None
+    order: Optional[OrderFilter] = None
     imageHash: Optional[StringFilter] = None
     health: Optional[FeltValueFilter] = None
     level: Optional[FeltValueFilter] = None
@@ -337,12 +520,12 @@ class DiscoveriesFilter:
 class BeastsFilter:
     id: Optional[FeltValueFilter] = None
     adventurerId: Optional[FeltValueFilter] = None
-    beastType: Optional[StringFilter] = None
-    attackType: Optional[StringFilter] = None
-    armorType: Optional[StringFilter] = None
+    beast: Optional[BeastFilter] = None
+    attackType: Optional[TypeFilter] = None
+    armorType: Optional[TypeFilter] = None
     rank: Optional[FeltValueFilter] = None
-    prefix_1: Optional[StringFilter] = None
-    prefix_2: Optional[StringFilter] = None
+    prefix_1: Optional[NamePrefixFilter] = None
+    prefix_2: Optional[NameSuffixFilter] = None
     health: Optional[FeltValueFilter] = None
     xp: Optional[FeltValueFilter] = None
     level: Optional[FeltValueFilter] = None
@@ -357,13 +540,18 @@ class ItemsFilter:
     type: Optional[StringFilter] = None
     material: Optional[MaterialFilter] = None
     rank: Optional[FeltValueFilter] = None
-    prefixes: Optional[StringFilter] = None
-    suffix: Optional[StringFilter] = None
+    prefix1: Optional[NamePrefixFilter] = None
+    prefix2: Optional[NameSuffixFilter] = None
+    suffix: Optional[SuffixFilter] = None
     greatness: Optional[FeltValueFilter] = None
     createdBlock: Optional[FeltValueFilter] = None
     xp: Optional[FeltValueFilter] = None
     adventurerId: Optional[FeltValueFilter] = None
     bag: Optional[FeltValueFilter] = None
+    price: Optional[FeltValueFilter] = None
+    expiry: Optional[DateTimeFilter] = None
+    bidder: Optional[FeltValueFilter] = None
+    status: Optional[StatusFilter] = None
 
 
 @strawberry.input
@@ -437,38 +625,42 @@ class ItemsOrderByInput:
     xp: Optional[OrderByInput] = None
     adventurerId: Optional[OrderByInput] = None
     bag: Optional[OrderByInput] = None
+    price: Optional[OrderByInput] = None
+    expiry: Optional[OrderByInput] = None
+    bidder: Optional[OrderByInput] = None
+    status: Optional[OrderByInput] = None
 
 
 @strawberry.type
 class Adventurer:
-    id: FeltValue
-    owner: HexValue
-    race: RaceValue
-    name: StringValue
-    order: OrderValue
-    imageHash1: StringValue
-    imageHash2: StringValue
-    health: FeltValue
-    level: FeltValue
-    strength: FeltValue
-    dexterity: FeltValue
-    vitality: FeltValue
-    intelligence: FeltValue
-    wisdom: FeltValue
-    charisma: FeltValue
-    luck: FeltValue
-    xp: FeltValue
-    weaponId: FeltValue
-    chestId: FeltValue
-    headId: FeltValue
-    waistId: FeltValue
-    feetId: FeltValue
-    handsId: FeltValue
-    neckId: FeltValue
-    ringId: FeltValue
-    status: FeltValue
-    beastId: FeltValue
-    upgrading: BooleanValue
+    id: Optional[FeltValue]
+    owner: Optional[HexValue]
+    race: Optional[RaceValue]
+    name: Optional[StringValue]
+    order: Optional[OrderValue]
+    imageHash1: Optional[StringValue]
+    imageHash2: Optional[StringValue]
+    health: Optional[FeltValue]
+    level: Optional[FeltValue]
+    strength: Optional[FeltValue]
+    dexterity: Optional[FeltValue]
+    vitality: Optional[FeltValue]
+    intelligence: Optional[FeltValue]
+    wisdom: Optional[FeltValue]
+    charisma: Optional[FeltValue]
+    luck: Optional[FeltValue]
+    xp: Optional[FeltValue]
+    weaponId: Optional[FeltValue]
+    chestId: Optional[FeltValue]
+    headId: Optional[FeltValue]
+    waistId: Optional[FeltValue]
+    feetId: Optional[FeltValue]
+    handsId: Optional[FeltValue]
+    neckId: Optional[FeltValue]
+    ringId: Optional[FeltValue]
+    status: Optional[FeltValue]
+    beastId: Optional[FeltValue]
+    upgrading: Optional[BooleanValue]
 
     @classmethod
     def from_mongo(cls, data):
@@ -506,12 +698,12 @@ class Adventurer:
 
 @strawberry.type
 class Discovery:
-    adventurerId: FeltValue
-    disoveryType: FeltValue
-    subDiscoveryType: FeltValue
-    entityId: FeltValue
-    outputAmount: FeltValue
-    discoveryTime: datetime
+    adventurerId: Optional[FeltValue]
+    discoveryType: Optional[FeltValue]
+    subDiscoveryType: Optional[FeltValue]
+    entityId: Optional[FeltValue]
+    outputAmount: Optional[FeltValue]
+    discoveryTime: Optional[datetime]
 
     @classmethod
     def from_mongo(cls, data):
@@ -527,29 +719,30 @@ class Discovery:
 
 @strawberry.type
 class Heist:
-    adventurer_id: FeltValue
+    adventurer_id: Optional[FeltValue]
 
 
 @strawberry.type
 class Beast:
-    id: FeltValue
-    adventurerId: FeltValue
-    beastType: StringValue
-    attackType: StringValue
-    armorType: StringValue
-    rank: FeltValue
-    prefix1: StringValue
-    prefix2: StringValue
-    health: FeltValue
-    xp: FeltValue
-    level: FeltValue
-    slainOnDate: datetime
+    id: Optional[FeltValue]
+    adventurerId: Optional[FeltValue]
+    beast: Optional[BeastValue]
+    attackType: Optional[TypeValue]
+    armorType: Optional[TypeValue]
+    rank: Optional[FeltValue]
+    prefix1: Optional[NamePrefixValue]
+    prefix2: Optional[NameSuffixValue]
+    health: Optional[FeltValue]
+    xp: Optional[FeltValue]
+    level: Optional[FeltValue]
+    slainOnDate: Optional[datetime]
 
     @classmethod
     def from_mongo(cls, data):
         return cls(
             id=data["beast_id"],
             adventurerId=data["adventurer_id"],
+            beast=data["beast_type"],
             attackType=data["attack_type"],
             armorType=data["armor_type"],
             rank=data["rank"],
@@ -562,51 +755,58 @@ class Beast:
         )
 
 
-@strawberry.type
-class Battles:
-    adventurer_id: FeltValue
+# @strawberry.type
+# class Battles:
+#     adventurer_id: FeltValue
+#     battle_start: datetime
 
 
 @strawberry.type
 class Item:
-    id: FeltValue
-    market_id: FeltValue
-    item: FeltValue
-    slot: FeltValue
-    type: FeltValue
-    material: FeltValue
-    rank: FeltValue
-    prefix1: StringValue
-    prefix2: StringValue
-    suffix: StringValue
-    greatness: FeltValue
-    createdBlock: FeltValue
-    xp: FeltValue
-    adventurerId: FeltValue
-    bag: FeltValue
-    price: FeltValue
-    expiry: datetime
-    bidder: FeltValue
-    status: FeltValue
+    id: Optional[FeltValue]
+    marketId: Optional[FeltValue]
+    owner: Optional[HexValue]
+    claimedTime: Optional[datetime]
+    item: Optional[ItemValue]
+    slot: Optional[SlotValue]
+    type: Optional[TypeValue]
+    material: Optional[MaterialValue]
+    rank: Optional[FeltValue]
+    prefix1: Optional[NamePrefixValue]
+    prefix2: Optional[NameSuffixValue]
+    suffix: Optional[SuffixValue]
+    greatness: Optional[FeltValue]
+    createdBlock: Optional[FeltValue]
+    xp: Optional[FeltValue]
+    adventurerId: Optional[FeltValue]
+    bag: Optional[FeltValue]
+    price: Optional[FeltValue]
+    expiry: Optional[datetime]
+    bidder: Optional[FeltValue]
+    status: Optional[StatusValue]
 
     @classmethod
     def from_mongo(cls, data):
         return cls(
             id=data["item_id"],
+            marketId=data["market_item_id"],
+            owner=data["owner"],
+            claimedTime=data["claimed_time"],
             item=data["item"],
             slot=data["slot"],
-            type=data["attack_type"],
+            type=data["type"],
             material=data["material"],
             rank=data["rank"],
-            prefixes=data["prefixes"],
+            prefix1=data["prefix_1"],
+            prefix2=data["prefix_2"],
             suffix=data["suffix"],
             greatness=data["greatness"],
             createdBlock=data["created_block"],
             xp=data["xp"],
             adventurerId=data["adventurer_id"],
             bag=data["bag"],
-            data=["price"],
-            expiry=["expiry"],
+            price=data["price"],
+            expiry=data["expiry"],
             bidder=data["bidder"],
             status=data["status"],
         )
@@ -727,7 +927,11 @@ def get_adventurers(
     if where:
         processed_filters = process_filters(where)
         for key, value in processed_filters.items():
-            if isinstance(value, StringFilter):
+            if (
+                isinstance(value, StringFilter)
+                | isinstance(value, OrderFilter)
+                | isinstance(value, RaceFilter)
+            ):
                 filter[key] = get_str_filters(value)
             elif isinstance(value, HexValueFilter):
                 filter[key] = get_hex_filters(value)
@@ -763,7 +967,7 @@ def get_discoveries(
     where: Optional[DiscoveriesFilter] = {},
     limit: Optional[int] = 10,
     skip: Optional[int] = 0,
-    orderBy: Optional[AdventurersOrderByInput] = {},
+    orderBy: Optional[DiscoveriesOrderByInput] = {},
 ) -> List[Discovery]:
     db = info.context["db"]
 
@@ -808,7 +1012,7 @@ def get_beasts(
     where: Optional[BeastsFilter] = {},
     limit: Optional[int] = 10,
     skip: Optional[int] = 0,
-    orderBy: Optional[AdventurersOrderByInput] = {},
+    orderBy: Optional[BeastsOrderByInput] = {},
 ) -> List[Beast]:
     db = info.context["db"]
 

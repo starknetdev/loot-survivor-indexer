@@ -193,7 +193,7 @@ adventurer_killed_thief_abi = {
 create_beast_abi = {
     "outputs": [
         {"name": "beast_token_id", "type": "Uint256"},
-        {"name": "adventurer_token_id", "type": "Uint256"},
+        {"name": "beast_state", "type": "Beast"},
     ],
     "keys": [],
     "name": "CreateBeast",
