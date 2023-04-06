@@ -51,6 +51,17 @@ adventurer_state_abi = {
     "type": "struct",
 }
 
+thief_state_abi = {
+    "members": [
+        {"name": "AdventurerId", "offset": 0, "type": "Uint256"},
+        {"name": "StartTime", "offset": 2, "type": "felt"},
+        {"name": "Gold", "offset": 3, "type": "felt"},
+    ],
+    "name": "ThiefState",
+    "size": 4,
+    "type": "struct",
+}
+
 beast_state_abi = {
     "members": [
         {"name": "Id", "offset": 0, "type": "felt"},
@@ -148,45 +159,13 @@ discovery_abi = {
     "type": "event",
 }
 
-adventurer_king_hiest_abi = {
-    "outputs": [
-        {"name": "adventurer_id", "type": "Uint256"},
-        {"name": "adventurer_state", "type": "AdventurerState"},
-    ],
+update_thief_state_abi = {
+    "outputs": [{"name": "thief_state", "type": "ThiefState"}],
     "keys": [],
-    "name": "AdventurerInitiatedKingHiest",
+    "name": "UpdateThiefState",
     "type": "event",
 }
 
-adventurer_rob_king_abi = {
-    "outputs": [
-        {"name": "adventurer_id", "type": "Uint256"},
-        {"name": "adventurer_state", "type": "AdventurerState"},
-    ],
-    "keys": [],
-    "name": "AdventurerRobbedKing",
-    "type": "event",
-}
-
-adventurer_died_robbing_king_abi = {
-    "outputs": [
-        {"name": "adventurer_id", "type": "Uint256"},
-        {"name": "adventurer_state", "type": "AdventurerState"},
-    ],
-    "keys": [],
-    "name": "AdventurerDiedRobbingKing",
-    "type": "event",
-}
-
-adventurer_killed_thief_abi = {
-    "outputs": [
-        {"name": "adventurer_id", "type": "Uint256"},
-        {"name": "adventurer_state", "type": "AdventurerState"},
-    ],
-    "keys": [],
-    "name": "AdventurerKilledThief",
-    "type": "event",
-}
 
 # BEAST EVENTS
 
@@ -360,6 +339,13 @@ discovery_decoder = FunctionCallSerializer(
     identifier_manager=identifier_manager_from_abi([discovery_abi, uint256_abi]),
 )
 
+update_thief_state_decoder = FunctionCallSerializer(
+    abi=update_thief_state_abi,
+    identifier_manager=identifier_manager_from_abi(
+        [update_thief_state_abi, thief_state_abi]
+    ),
+)
+
 
 def decode_mint_adventurer_event(data):
     return mint_adventurer_decoder.to_python([felt.to_int(d) for d in data])
@@ -375,6 +361,10 @@ def decode_adventurer_level_up_event(data):
 
 def decode_discovery_event(data):
     return discovery_decoder.to_python([felt.to_int(d) for d in data])
+
+
+def decode_update_thief_state_event(data):
+    return update_thief_state_decoder.to_python([felt.to_int(d) for d in data])
 
 
 ## BEAST DECODERS

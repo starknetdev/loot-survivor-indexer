@@ -12,5 +12,39 @@ services:
     volumes:
     - mongo-data:/data/db
 
+  indexer:
+    build:
+      context: .
+      dockerfile: starknetdev/loot-survivor-indexer:latest
+    restart: always
+    command:
+    - start
+    - --mongo-url
+    - "mongodb://apibara:apibara@mongo:27017"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    links:
+    - mongo
+
+  graphql:
+    build:
+      context: .
+      dockerfile: starknetdev/loot-survivor-indexer:latest
+    restart: always
+    command:
+    - graphql
+    - --mongo-url
+    - "mongodb://apibara:apibara@mongo:27017"
+    - --port
+    - "8080"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - 8080:8080
+    links:
+    - mongo
+
+
+
 volumes:
   mongo-data:

@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 from typing import List, NewType, Optional, Dict
+import socket
 
 import strawberry
 import aiohttp_cors
@@ -719,7 +720,9 @@ class Discovery:
 
 @strawberry.type
 class Heist:
-    adventurer_id: Optional[FeltValue]
+    thiefId: Optional[FeltValue]
+    heist_time: Optional[datetime]
+    gold: Optional[FeltValue]
 
 
 @strawberry.type
@@ -1110,7 +1113,7 @@ class IndexerGraphQLView(GraphQLView):
         return {"db": self._db}
 
 
-async def run_graphql_api(mongo_url=None):
+async def run_graphql_api(mongo_url=None, port="8080"):
     mongo = MongoClient(mongo_url)
     indexer = LootSurvivorIndexer()
     db_name = indexer.indexer_id().replace("-", "_")
@@ -1121,6 +1124,7 @@ async def run_graphql_api(mongo_url=None):
 
     app = web.Application()
     app.router.add_route("*", "/graphql", view)
+
     # cors = aiohttp_cors.setup(app)
     # resource = cors.add(app.router.add_resource("/graphql"))
     # cors.add(
@@ -1142,10 +1146,10 @@ async def run_graphql_api(mongo_url=None):
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "localhost", "8080")
+    site = web.TCPSite(runner, "0.0.0.0", int(port))
     await site.start()
 
-    print(f"GraphQL server started on port 8080")
+    print(f"GraphQL server started on port {port}")
 
     while True:
         await asyncio.sleep(5_000)

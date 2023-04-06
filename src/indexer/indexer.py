@@ -17,20 +17,12 @@ from indexer.config import Config
 from indexer.decoder import (
     decode_mint_adventurer_event,
     decode_update_adventurer_state_event,
-    decode_adventurer_level_up_event,
     decode_discovery_event,
+    decode_update_thief_state_event,
     decode_create_beast_event,
     decode_beast_state_event,
-    decode_beast_level_up_event,
     decode_beast_attacked_event,
-    decode_adventurer_attacked_event,
-    decode_fled_beast_event,
-    decode_adventurer_ambushed_event,
     decode_item_state_event,
-    decode_item_xp_increase_event,
-    decode_item_greatness_increase_event,
-    decode_item_prefixes_assigned_event,
-    decode_item_suffix_assigned_event,
     decode_claim_item_event,
     decode_item_merchant_update_event,
 )
@@ -79,12 +71,8 @@ class LootSurvivorIndexer(StarkNetIndexer):
         for adventurer_event in [
             "MintAdventurer",
             "UpdateAdventurerState",
-            "AdventurerLeveledUp",
             "Discovery",
-            "AdventurerInitiatedKingHiest",
-            "AdventurerRobbedKing",
-            "AdventurerDiedRobbingKing",
-            "AdventurerKilledThief",
+            "UpdatedThiefState",
         ]:
             add_filter(config.ADVENTURER_CONTRACT, adventurer_event)
 
@@ -92,21 +80,14 @@ class LootSurvivorIndexer(StarkNetIndexer):
         for beast_event in [
             "CreateBeast",
             "UpdateBeastState",
-            "BeastLevelUp",
             "BeastAttacked",
             "AdventurerAttacked",
-            "FledBeast",
-            "AdventurerAmbushed",
         ]:
             add_filter(config.BEAST_CONTRACT, beast_event)
 
         # loot contract
         for loot_event in [
             "UpdateItemState",
-            "ItemXPIncrease",
-            "ItemGreatnessIncrease",
-            "ItemNamePrefixesAssigned",
-            "ItemNameSuffixAssigned",
             "ClaimItem",
             "ItemMerchantUpdate",
         ]:
@@ -127,24 +108,13 @@ class LootSurvivorIndexer(StarkNetIndexer):
             await {
                 "MintAdventurer": self.mint_adventurer,
                 "UpdateAdventurerState": self.update_adventurer_state,
-                "AdventurerLeveledUp": self.adventurer_level_up,
                 "Discovery": self.discovery,
-                "AdventurerInitiatedKingHiest": self.initiated_hiest,
-                "AdventurerRobbedKing": self.robbed_king,
-                "AdventurerDiedRobbingKing": self.died_robbing_king,
-                "AdventurerKilledThief": self.killed_thief,
+                "UpdatedThiefState": self.update_thief,
                 "CreateBeast": self.create_beast,
                 "UpdateBeastState": self.update_beast_state,
-                "BeastLevelUp": self.beast_level_up,
                 "BeastAttacked": self.beast_attacked,
                 "AdventurerAttacked": self.adventurer_attacked,
-                "FledBeast": self.fled_beast,
-                "AdventurerAmbushed": self.adventurer_ambushed,
                 "UpdateItemState": self.update_item_state,
-                "ItemXPIncrease": self.item_xp_increase,
-                "ItemGreatnessIncrease": self.item_greatness_increase,
-                "ItemNamePrefixesAssigned": self.item_prefixes_assigned,
-                "ItemNameSuffixAssigned": self.item_suffix_assigned,
                 "ClaimItem": self.claim_item,
                 "ItemMerchantUpdate": self.update_merchant_item,
             }[event_name](info, block_time, event.from_address, event.data)
@@ -216,15 +186,6 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "- [update adventurer state]", ua.adventurer_id, "->", ua.adventurer_state
         )
 
-    async def adventurer_level_up(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
     async def discovery(
         self,
         info: Info,
@@ -243,46 +204,41 @@ class LootSurvivorIndexer(StarkNetIndexer):
         }
         await info.storage.insert_one("discoveries", discovery_doc)
 
-    async def initiated_hiest(
+    async def update_thief(
         self,
         info: Info,
         block_time: datetime,
         _: FieldElement,
         data: List[FieldElement],
     ):
-        ih = decode_update_adventurer_state_event(data)
+        ut = decode_update_thief_state_event(data)
         heist_doc = {
-            "adventurer_id": check_exists_int(ih.adventurer_id),
-            "timestamp": block_time,
+            "thief_id": check_exists_int(ut.thief_state["AdventurerId"]),
+            "start_time": check_exists_int(ut.thief_state["StartTime"]),
+            "gold": check_exists_int(ut.thief_state["Gold"]),
+            "last_updated": block_time,
         }
-        await info.storage.insert_one("heists", heist_doc)
-
-    async def robbed_king(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
-    async def died_robbing_king(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
-    async def killed_thief(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
+        thief_state = await info.storage.find_one(
+            "heists",
+            {
+                "beast_id": encode_int_as_bytes(ut.thief_state["AdventurerId"]),
+            },
+        )
+        if thief_state:
+            await info.storage.find_one_and_update(
+                "heists",
+                {
+                    "thief_id": encode_int_as_bytes(ut.thief_state["AdventurerId"]),
+                },
+                {
+                    "$set": heist_doc,
+                },
+            )
+        else:
+            await info.storage.insert_one(
+                "heists",
+                heist_doc,
+            )
 
     async def create_beast(
         self,
@@ -355,15 +311,6 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 update_beast_doc,
             )
         print("- [update beast state]", ub.beast_token_id, "->", ub.beast_state)
-
-    async def beast_level_up(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
 
     async def beast_attacked(
         self,
@@ -452,24 +399,6 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "damage",
         )
 
-    async def fled_beast(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
-    async def adventurer_ambushed(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
     async def update_item_state(
         self,
         info: Info,
@@ -515,42 +444,6 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 update_item_doc,
             )
         print("- [update item state]", ui.item_id, "->", ui.update_item_doc)
-
-    async def item_xp_increase(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
-    async def item_greatness_increase(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
-    async def item_prefixes_assigned(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
-
-    async def item_suffix_assigned(
-        self,
-        info: Info,
-        block_time: datetime,
-        _: FieldElement,
-        data: List[FieldElement],
-    ):
-        pass
 
     async def claim_item(
         self,
@@ -659,11 +552,14 @@ class LootSurvivorIndexer(StarkNetIndexer):
         raise ValueError("data must be finalized")
 
 
-async def run_indexer(server_url=None, mongo_url=None, restart=None):
+async def run_indexer(server_url=None, stream_ssl=True, mongo_url=None, restart=None):
     AUTH_TOKEN = os.environ.get("AUTH_TOKEN")
+    if server_url == "localhost:7171" or server_url == "apibara:7171":
+        stream_ssl = False
     runner = IndexerRunner(
         config=IndexerRunnerConfiguration(
             stream_url=server_url,
+            stream_ssl=stream_ssl,
             storage_url=mongo_url,
             token=AUTH_TOKEN,
         ),

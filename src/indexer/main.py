@@ -5,6 +5,8 @@ from functools import wraps
 
 import click
 
+from apibara.protocol import StreamAddress
+
 from indexer.indexer import run_indexer
 from indexer.graphql import run_graphql_api
 
@@ -30,7 +32,8 @@ def cli():
 async def start(server_url, mongo_url, restart):
     """Start the Apibara indexer."""
     if server_url is None:
-        server_url = "goerli.starknet.a5a.ch:443"
+        server_url = StreamAddress.StarkNet.Goerli
+
     if mongo_url is None:
         mongo_url = "mongodb://apibara:apibara@localhost:27017"
 
@@ -43,12 +46,13 @@ async def start(server_url, mongo_url, restart):
 
 @cli.command()
 @click.option("--mongo-url", default=None, help="MongoDB url.")
+@click.option("--port", default=None, help="Port number.")
 @async_command
-async def graphql(mongo_url):
+async def graphql(mongo_url, port):
     """Start the GraphQL server."""
     if mongo_url is None:
         mongo_url = "mongodb://apibara:apibara@localhost:27017"
+    if port is None:
+        port = "8080"
 
-    await run_graphql_api(
-        mongo_url=mongo_url,
-    )
+    await run_graphql_api(mongo_url=mongo_url, port=port)
