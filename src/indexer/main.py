@@ -28,8 +28,12 @@ def cli():
 @click.option("--server-url", default=None, help="Apibara stream url.")
 @click.option("--mongo-url", default=None, help="MongoDB url.")
 @click.option("--restart", is_flag=True, help="Restart indexing from the beginning.")
+@click.option("--adventurer", is_flag=None, help="Adventurer contract address.")
+@click.option("--beast", is_flag=None, help="Beast contract address.")
+@click.option("--loot", is_flag=None, help="Loot contract address.")
+@click.option("--start_block", is_flag=None, help="Indexer starting block.")
 @async_command
-async def start(server_url, mongo_url, restart):
+async def start(server_url, mongo_url, restart, adventurer, beast, loot, start_block):
     """Start the Apibara indexer."""
     if server_url is None:
         server_url = StreamAddress.StarkNet.Goerli
@@ -41,6 +45,10 @@ async def start(server_url, mongo_url, restart):
         restart=restart,
         server_url=server_url,
         mongo_url=mongo_url,
+        adventurer=adventurer,
+        beast=beast,
+        loot=loot,
+        start_block=start_block,
     )
 
 

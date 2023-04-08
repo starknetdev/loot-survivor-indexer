@@ -22,6 +22,7 @@ from indexer.decoder import (
     decode_create_beast_event,
     decode_beast_state_event,
     decode_beast_attacked_event,
+    decode_update_gold_event,
     decode_item_state_event,
     decode_claim_item_event,
     decode_item_merchant_update_event,
@@ -46,10 +47,11 @@ def encode_str_as_bytes(value):
     return felt.to_bytes(32, "big")
 
 
-config = Config()
-
-
 class LootSurvivorIndexer(StarkNetIndexer):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
     def indexer_id(self) -> str:
         return "starknet-example"
 
@@ -74,7 +76,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "Discovery",
             "UpdatedThiefState",
         ]:
-            add_filter(config.ADVENTURER_CONTRACT, adventurer_event)
+            add_filter(self.config.ADVENTURER_CONTRACT, adventurer_event)
 
         # beast contract
         for beast_event in [
@@ -82,8 +84,9 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "UpdateBeastState",
             "BeastAttacked",
             "AdventurerAttacked",
+            "UpdateGoldBalance",
         ]:
-            add_filter(config.BEAST_CONTRACT, beast_event)
+            add_filter(self.config.BEAST_CONTRACT, beast_event)
 
         # loot contract
         for loot_event in [
@@ -91,11 +94,11 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "ClaimItem",
             "ItemMerchantUpdate",
         ]:
-            add_filter(config.LOOT_CONTRACT, loot_event)
+            add_filter(self.config.LOOT_CONTRACT, loot_event)
 
         return IndexerConfiguration(
             filter=filter,
-            starting_cursor=starknet_cursor(config.STARTING_BLOCK),
+            starting_cursor=starknet_cursor(self.config.STARTING_BLOCK),
             finality=DataFinality.DATA_STATUS_PENDING,
         )
 
@@ -114,6 +117,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 "UpdateBeastState": self.update_beast_state,
                 "BeastAttacked": self.beast_attacked,
                 "AdventurerAttacked": self.adventurer_attacked,
+                "UpdateGoldBalance": self.update_gold,
                 "UpdateItemState": self.update_item_state,
                 "ClaimItem": self.claim_item,
                 "ItemMerchantUpdate": self.update_merchant_item,
@@ -133,7 +137,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "timestamp": block_time,
         }
         await info.storage.insert_one("adventurers", mint_adventurer_doc)
-        print("- [mint adventurer]", ma.adventurer_id, "->", ma.owner)
+        print("- [mint adventurer]", ma.adventurer_id, "->", hex(ma.owner))
 
     async def update_adventurer_state(
         self,
@@ -203,6 +207,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "discovery_time": block_time,
         }
         await info.storage.insert_one("discoveries", discovery_doc)
+        print("- [discovery]", d.adventurer_id, "->", d.discovery_type)
 
     async def update_thief(
         self,
@@ -239,6 +244,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 "heists",
                 heist_doc,
             )
+        print("- [update thief]", ut.thief_state["AdventurerId"], "->", ut.thief_state)
 
     async def create_beast(
         self,
@@ -249,7 +255,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
     ):
         cb = decode_create_beast_event(data)
         beast_doc = {
-            "beast_token_id": check_exists_int(cb.adventurer_id),
+            "beast_token_id": check_exists_int(cb.beast_token_id),
             "adventurer_id": check_exists_int(cb.beast_state["Adventurer"]),
             "created_date": block_time,
             "beast_type": check_exists_int(cb.beast_state["Id"]),
@@ -265,6 +271,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "last_updated": block_time,
         }
         await info.storage.insert_one("beasts", beast_doc)
+        print("- [create beast]", cb.beast_token_id, "->", cb.beast_state)
 
     async def update_beast_state(
         self,
@@ -399,6 +406,40 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "damage",
         )
 
+    async def update_gold(
+        self,
+        info: Info,
+        block_time: datetime,
+        _: FieldElement,
+        data: List[FieldElement],
+    ):
+        ug = decode_update_gold_event(data)
+        update_gold_doc = {
+            "adventurer_token_id": check_exists_int(ug.adventurer_token_id),
+            "gold": check_exists_int(ug.balance),
+            "last_updated": block_time,
+        }
+        adventurer = await info.storage.find_one(
+            "adventurers",
+            {
+                "adventurer_token_id": check_exists_int(ug.adventurer_token_id),
+            },
+        )
+        if adventurer:
+            await info.storage.find_one_and_update(
+                "adventurers",
+                {
+                    "adventurer_token_id": check_exists_int(ug.adventurer_token_id),
+                },
+                {"$set": update_gold_doc},
+            )
+        else:
+            await info.storage.insert_one(
+                "adventurers",
+                update_gold_doc,
+            )
+        print("- [update gold]", ug.adventurer_token_id, "->", ug.balance, "gold")
+
     async def update_item_state(
         self,
         info: Info,
@@ -470,7 +511,6 @@ class LootSurvivorIndexer(StarkNetIndexer):
             },
         )
         print("- [claim item]", ci.market_item_id, "->", ci.item_token_id)
-        pass
 
     async def update_merchant_item(
         self,
@@ -552,7 +592,16 @@ class LootSurvivorIndexer(StarkNetIndexer):
         raise ValueError("data must be finalized")
 
 
-async def run_indexer(server_url=None, stream_ssl=True, mongo_url=None, restart=None):
+async def run_indexer(
+    server_url=None,
+    stream_ssl=True,
+    mongo_url=None,
+    restart=None,
+    adventurer=None,
+    beast=None,
+    loot=None,
+    start_block=None,
+):
     AUTH_TOKEN = os.environ.get("AUTH_TOKEN")
     if server_url == "localhost:7171" or server_url == "apibara:7171":
         stream_ssl = False
@@ -566,5 +615,7 @@ async def run_indexer(server_url=None, stream_ssl=True, mongo_url=None, restart=
         reset_state=restart,
     )
 
+    config = Config(adventurer, beast, loot, start_block)
+
     # ctx can be accessed by the callbacks in `info`.
-    await runner.run(LootSurvivorIndexer(), ctx={"network": "starknet-testnet"})
+    await runner.run(LootSurvivorIndexer(config), ctx={"network": "starknet-testnet"})

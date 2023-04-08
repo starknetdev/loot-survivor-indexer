@@ -1,15 +1,9 @@
 class Config:
-    def __init__(self):
-        self.ADVENTURER_CONTRACT = (
-            "0x035d755a23ec72df90819f584d9a1849bbc21fa77f96d25e03f1736883895248"
-        )
-        self.BEAST_CONTRACT = (
-            "0x000f4dbfe5d15792aa91025e42ee1d74c22bdeb1eef0b9bc19a37216377290c1"
-        )
-        self.LOOT_CONTRACT = (
-            "0x065669e15c8f1a7f17b7062e4eb1b709b922b931b93c59577f1848a85c30ab1f"
-        )
-        self.STARTING_BLOCK = 785_000
+    def __init__(self, adventurer=None, beast=None, loot=None, start_block=0):
+        self.ADVENTURER_CONTRACT = adventurer
+        self.BEAST_CONTRACT = beast
+        self.LOOT_CONTRACT = loot
+        self.STARTING_BLOCK = int(start_block)
 
         self.BEASTS = {
             1: "Pheonix",

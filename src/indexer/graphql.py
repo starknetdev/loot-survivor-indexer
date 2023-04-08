@@ -1058,7 +1058,7 @@ def get_items(
     where: Optional[ItemsFilter] = {},
     limit: Optional[int] = 10,
     skip: Optional[int] = 0,
-    orderBy: Optional[AdventurersOrderByInput] = {},
+    orderBy: Optional[ItemsOrderByInput] = {},
 ) -> List[Item]:
     db = info.context["db"]
 
