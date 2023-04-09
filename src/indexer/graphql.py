@@ -1115,7 +1115,7 @@ class IndexerGraphQLView(GraphQLView):
 
 async def run_graphql_api(mongo_url=None, port="8080"):
     mongo = MongoClient(mongo_url)
-    indexer = LootSurvivorIndexer()
+    indexer = LootSurvivorIndexer(config)
     db_name = indexer.indexer_id().replace("-", "_")
     db = mongo[db_name]
 

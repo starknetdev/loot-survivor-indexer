@@ -53,7 +53,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         self.config = config
 
     def indexer_id(self) -> str:
-        return "starknet-example"
+        return f"loot-survivor-indexer-{self.config.network}"
 
     def initial_configuration(self) -> Filter:
         # Return initial configuration of the indexer.
@@ -96,14 +96,20 @@ class LootSurvivorIndexer(StarkNetIndexer):
         ]:
             add_filter(self.config.LOOT_CONTRACT, loot_event)
 
+        if self.config.network == "devnet":
+            finality = DataFinality.DATA_STATUS_ACCEPTED
+        else:
+            finality = DataFinality.DATA_STATUS_PENDING
+
         return IndexerConfiguration(
             filter=filter,
             starting_cursor=starknet_cursor(self.config.STARTING_BLOCK),
-            finality=DataFinality.DATA_STATUS_PENDING,
+            finality=finality,
         )
 
     async def handle_data(self, info: Info, data: Block):
         block_time = data.header.timestamp.ToDatetime()
+        print(f"Indexing block {data.header.block_number}")
         # Handle one block of data
         for event_with_tx in data.events:
             event = event_with_tx.event
@@ -121,13 +127,20 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 "UpdateItemState": self.update_item_state,
                 "ClaimItem": self.claim_item,
                 "ItemMerchantUpdate": self.update_merchant_item,
-            }[event_name](info, block_time, event.from_address, event.data)
+            }[event_name](
+                info,
+                block_time,
+                event.from_address,
+                event_with_tx.transaction.meta.hash,
+                event.data,
+            )
 
     async def mint_adventurer(
         self,
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data,
     ):
         ma = decode_mint_adventurer_event(data)
@@ -144,6 +157,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data,
     ):
         ua = decode_update_adventurer_state_event(data)
@@ -195,10 +209,12 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         d = decode_discovery_event(data)
         discovery_doc = {
+            "transaction_hash": check_exists_int(tx_hash),
             "adventurer_id": check_exists_int(d.adventurer_id),
             "discovery_type": check_exists_int(d.discovery_type),
             "sub_discovery_type": check_exists_int(d.sub_discovery_type),
@@ -214,6 +230,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         ut = decode_update_thief_state_event(data)
@@ -251,6 +268,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         cb = decode_create_beast_event(data)
@@ -278,6 +296,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         ub = decode_beast_state_event(data)
@@ -324,14 +343,16 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         ba = decode_beast_attacked_event(data)
         attacked_beast_doc = {
+            "tx_hash": encode_int_as_bytes(tx_hash),
             "beast_token_id": check_exists_int(ba.beast_token_id),
             "adventurer_token_id": check_exists_int(ba.adventurer_token_id),
             "damage": encode_int_as_bytes(ba.damage),
-            "last_updated": block_time,
+            "transaction_hash" "last_updated": block_time,
         }
         battle_state = await info.storage.find_one(
             "battles",
@@ -366,10 +387,12 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         aa = decode_beast_attacked_event(data)
         attacked_adventurer_doc = {
+            "tx_hash": encode_int_as_bytes(tx_hash),
             "beast_token_id": check_exists_int(aa.beast_token_id),
             "adventurer_token_id": check_exists_int(aa.adventurer_token_id),
             "damage": encode_int_as_bytes(aa.damage),
@@ -411,6 +434,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         ug = decode_update_gold_event(data)
@@ -445,6 +469,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         ui = decode_item_state_event(data)
@@ -491,6 +516,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         ci = decode_claim_item_event(data)
@@ -517,6 +543,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
+        tx_hash: FieldElement,
         data: List[FieldElement],
     ):
         um = decode_item_merchant_update_event(data)
@@ -597,6 +624,7 @@ async def run_indexer(
     stream_ssl=True,
     mongo_url=None,
     restart=None,
+    network=None,
     adventurer=None,
     beast=None,
     loot=None,
@@ -615,7 +643,11 @@ async def run_indexer(
         reset_state=restart,
     )
 
-    config = Config(adventurer, beast, loot, start_block)
+    config = Config(network, adventurer, beast, loot, start_block)
 
     # ctx can be accessed by the callbacks in `info`.
-    await runner.run(LootSurvivorIndexer(config), ctx={"network": "starknet-testnet"})
+    if server_url == "localhost:7171" or server_url == "apibara:7171":
+        ctx = {"network": "starknet-devnet"}
+    else:
+        ctx = {"network": "starknet-testnet"}
+    await runner.run(LootSurvivorIndexer(config), ctx=ctx)

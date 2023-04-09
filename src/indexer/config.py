@@ -1,5 +1,8 @@
 class Config:
-    def __init__(self, adventurer=None, beast=None, loot=None, start_block=0):
+    def __init__(
+        self, network=None, adventurer=None, beast=None, loot=None, start_block=0
+    ):
+        self.network = network
         self.ADVENTURER_CONTRACT = adventurer
         self.BEAST_CONTRACT = beast
         self.LOOT_CONTRACT = loot

@@ -1,50 +1,130 @@
-version: '3'
+version: "3"
 
 services:
-  mongo:
+  devnet:
+    image: shardlabs/starknet-devnet:latest
+    command:
+    - "--host=0.0.0.0"
+    - "--port=5050"
+    - "--disable-rpc-request-validation"
+    ports:
+    - 5050:5050
+
+  apibara:
+    image: quay.io/apibara/starknet:5e284618b2a1eea49aa04cb04d452ec48b3ffb99
+    ports:
+    - 7171:7171
+    depends_on:
+    - devnet
+    restart: always
+    command:
+    - "start"
+    - "--data=/data"
+    - "--rpc=http://devnet:5050/rpc"
+    environment:
+    - OTEL_SDK_DISABLED=true # disable tracing/metrics
+    volumes:
+    - apibara-data:/data
+
+  mongo-goerli:
     image: mongo:latest
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: apibara
-      MONGO_INITDB_ROOT_PASSWORD: apibara
+      MONGO_INITDB_ROOT_USERNAME: ${GOERLI_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${GOERLI_DB_PASSWORD}
     ports:
     - 27017:27017
     volumes:
-    - mongo-data:/data/db
+    - mongo-data:/data/goerli/db
 
-  indexer:
-    build:
-      context: .
-      dockerfile: starknetdev/loot-survivor-indexer:latest
+  mongo-devnet:
+    image: mongo:latest
+    restart: always
+    command: mongod --port 27018
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DEVNET_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${DEVNET_DB_PASSWORD}
+    ports:
+    - 27018:27018
+    volumes:
+    - mongo-data:/data/devnet/db
+
+  indexer-goerli:
+    image: starknetdev/loot-survivor-indexer:latest
     restart: always
     command:
     - start
     - --mongo-url
-    - "mongodb://apibara:apibara@mongo:27017"
+    - "mongodb://apibara:apibara@mongo-goerli:27017"
+    - --network
+    - "goerli"
+    - --adventurer
+    - "0x035d755a23ec72df90819f584d9a1849bbc21fa77f96d25e03f1736883895248"
+    - --beast
+    - "0x000f4dbfe5d15792aa91025e42ee1d74c22bdeb1eef0b9bc19a37216377290c1"
+    - --loot
+    - "0x065669e15c8f1a7f17b7062e4eb1b709b922b931b93c59577f1848a85c30ab1f"
+    - --start_block
+    - "791222"
     environment:
       PYTHONUNBUFFERED: "1"
     links:
-    - mongo
+    - mongo-goerli
 
-  graphql:
-    build:
-      context: .
-      dockerfile: starknetdev/loot-survivor-indexer:latest
+  indexer-devnet:
+    image: starknetdev/loot-survivor-indexer:latest
+    restart: always
+    command:
+    - start
+    - --server-url
+    - "apibara:7171"
+    - --mongo-url
+    - "mongodb://apibara:apibara@mongo-devnet:27018"
+    - --network
+    - "devnet"
+    - --adventurer
+    - "0x00e32dca25fe6cfb14c23966e2d8f27a2092925f0df72e69840f7263815ddf70"
+    - --beast
+    - "0x05e5543ed8afdbe8cc50b970304846ba76d7dafcdc1b4f8aa7743ee94065be32"
+    - --loot
+    - "0x046d7a056fe0ca4d0b7422cdfa4714be20b635b8bb4b4d958807b771b705ee9d"
+    - --start_block
+    - "0"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    links:
+    - mongo-devnet
+
+  graphql-goerli:
+    image: starknetdev/loot-survivor-indexer:latest
     restart: always
     command:
     - graphql
     - --mongo-url
-    - "mongodb://apibara:apibara@mongo:27017"
-    - --port
-    - "8080"
+    - "mongodb://apibara:apibara@mongo-goerli:27017"
     environment:
       PYTHONUNBUFFERED: "1"
     ports:
       - 8080:8080
     links:
-    - mongo
+    - mongo-goerli
 
-
+  graphql-devnet:
+    image: starknetdev/loot-survivor-indexer:latest
+    restart: always
+    command:
+    - graphql
+    - --mongo-url
+    - "mongodb://apibara:apibara@mongo-devnet:27018"
+    - --port
+    - "8081"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - 8081:8081
+    links:
+    - mongo-devnet
 
 volumes:
   mongo-data:
+  apibara-data:

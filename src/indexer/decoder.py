@@ -244,7 +244,7 @@ adventurer_ambushed_abi = {
 
 update_gold_balance_abi = {
     "outputs": [
-        {"name": "adventuer_token_id", "type": "Uint256"},
+        {"name": "adventurer_token_id", "type": "Uint256"},
         {"name": "balance", "type": "felt"},
     ],
     "keys": [],
