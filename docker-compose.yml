@@ -83,11 +83,11 @@ services:
     - --network
     - "devnet"
     - --adventurer
-    - "0x00e32dca25fe6cfb14c23966e2d8f27a2092925f0df72e69840f7263815ddf70"
+    - "0x00b34c2c5b7c35fb12a2999bfdd33d08132afca35e530804e8de8d6bf50ccfad"
     - --beast
-    - "0x05e5543ed8afdbe8cc50b970304846ba76d7dafcdc1b4f8aa7743ee94065be32"
+    - "0x0695b5625d22e22b4e415807ce9d1bb5f6856a1e607c3cc2124b85d38886fbf6"
     - --loot
-    - "0x046d7a056fe0ca4d0b7422cdfa4714be20b635b8bb4b4d958807b771b705ee9d"
+    - "0x00ce32116aaa06e2c8f531777fa0195b65971d8fe52abdd490bd35fdb4011de9"
     - --start_block
     - "0"
     environment:
