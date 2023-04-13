@@ -96,15 +96,10 @@ class LootSurvivorIndexer(StarkNetIndexer):
         ]:
             add_filter(self.config.LOOT_CONTRACT, loot_event)
 
-        if self.config.network == "devnet":
-            finality = DataFinality.DATA_STATUS_ACCEPTED
-        else:
-            finality = DataFinality.DATA_STATUS_PENDING
-
         return IndexerConfiguration(
             filter=filter,
             starting_cursor=starknet_cursor(self.config.STARTING_BLOCK),
-            finality=finality,
+            finality=DataFinality.DATA_STATUS_ACCEPTED,
         )
 
     async def handle_data(self, info: Info, data: Block):
