@@ -480,10 +480,12 @@ class AdventurersFilter:
     id: Optional[FeltValueFilter] = None
     owner: Optional[HexValueFilter] = None
     race: Optional[RaceFilter] = None
+    homeRealm: Optional[FeltValueFilter] = None
     birthdate: Optional[DateTimeFilter] = None
     name: Optional[StringFilter] = None
     order: Optional[OrderFilter] = None
-    imageHash: Optional[StringFilter] = None
+    imageHash1: Optional[StringFilter] = None
+    imageHash2: Optional[StringFilter] = None
     health: Optional[FeltValueFilter] = None
     level: Optional[FeltValueFilter] = None
     strength: Optional[FeltValueFilter] = None
@@ -505,6 +507,8 @@ class AdventurersFilter:
     status: Optional[StringFilter] = None
     beast: Optional[FeltValueFilter] = None
     upgrading: Optional[BooleanFilter] = None
+    gold: Optional[FeltValueFilter] = None
+    lastUpdated: Optional[DateTimeFilter] = None
 
 
 @strawberry.input
@@ -525,13 +529,14 @@ class BeastsFilter:
     attackType: Optional[TypeFilter] = None
     armorType: Optional[TypeFilter] = None
     rank: Optional[FeltValueFilter] = None
-    prefix_1: Optional[NamePrefixFilter] = None
-    prefix_2: Optional[NameSuffixFilter] = None
+    prefix1: Optional[NamePrefixFilter] = None
+    prefix2: Optional[NameSuffixFilter] = None
     health: Optional[FeltValueFilter] = None
     xp: Optional[FeltValueFilter] = None
     level: Optional[FeltValueFilter] = None
     slainOnDate: Optional[DateTimeFilter] = None
     birthdate: Optional[DateTimeFilter] = None
+    lastUpdated: Optional[DateTimeFilter] = None
 
 
 @strawberry.input
@@ -553,6 +558,7 @@ class ItemsFilter:
     expiry: Optional[DateTimeFilter] = None
     bidder: Optional[FeltValueFilter] = None
     status: Optional[StatusFilter] = None
+    lastUpdated: Optional[DateTimeFilter] = None
 
 
 @strawberry.input
@@ -560,10 +566,12 @@ class AdventurersOrderByInput:
     id: Optional[OrderByInput] = None
     owner: Optional[OrderByInput] = None
     race: Optional[OrderByInput] = None
+    homeRealm: Optional[OrderByInput] = None
     birthdate: Optional[OrderByInput] = None
     name: Optional[OrderByInput] = None
     order: Optional[OrderByInput] = None
-    imageHash: Optional[OrderByInput] = None
+    imageHash1: Optional[OrderByInput] = None
+    imageHash2: Optional[OrderByInput] = None
     health: Optional[OrderByInput] = None
     level: Optional[OrderByInput] = None
     strength: Optional[OrderByInput] = None
@@ -585,6 +593,8 @@ class AdventurersOrderByInput:
     status: Optional[OrderByInput] = None
     beast: Optional[OrderByInput] = None
     upgrading: Optional[OrderByInput] = None
+    gold: Optional[OrderByInput] = None
+    lastUpdated: Optional[OrderByInput] = None
 
 
 @strawberry.input
@@ -610,6 +620,7 @@ class BeastsOrderByInput:
     xp: Optional[OrderByInput] = None
     level: Optional[OrderByInput] = None
     slainOnDate: Optional[OrderByInput] = None
+    lastUpdated: Optional[OrderByInput] = None
 
 
 @strawberry.input
@@ -630,6 +641,7 @@ class ItemsOrderByInput:
     expiry: Optional[OrderByInput] = None
     bidder: Optional[OrderByInput] = None
     status: Optional[OrderByInput] = None
+    lastUpdated: Optional[OrderByInput] = None
 
 
 @strawberry.type
@@ -637,6 +649,8 @@ class Adventurer:
     id: Optional[FeltValue]
     owner: Optional[HexValue]
     race: Optional[RaceValue]
+    homeRealm: Optional[FeltValue]
+    birthdate: Optional[datetime]
     name: Optional[StringValue]
     order: Optional[OrderValue]
     imageHash1: Optional[StringValue]
@@ -662,17 +676,21 @@ class Adventurer:
     status: Optional[FeltValue]
     beastId: Optional[FeltValue]
     upgrading: Optional[BooleanValue]
+    gold: Optional[FeltValue]
+    lastUpdated: Optional[datetime]
 
     @classmethod
     def from_mongo(cls, data):
         return cls(
-            id=data["adventurer_id"],
+            id=data["id"],
             owner=data["owner"],
             race=data["race"],
+            homeRealm=data["homeRealm"],
+            birthdate=data["birthdate"],
             name=data["name"],
             order=data["order"],
-            imageHash1=data["image_hash_1"],
-            imageHash2=data["image_hash_2"],
+            imageHash1=data["imageHash1"],
+            imageHash2=data["imageHash2"],
             health=data["health"],
             level=data["level"],
             strength=data["strength"],
@@ -683,17 +701,19 @@ class Adventurer:
             charisma=data["charisma"],
             luck=data["luck"],
             xp=data["xp"],
-            weaponId=data["weapon_id"],
-            chestId=data["chest_id"],
-            headId=data["head_id"],
-            waistId=data["waist_id"],
-            feetId=data["feet_id"],
-            handsId=data["hands_id"],
-            neckId=data["neck_id"],
-            ringId=data["ring_id"],
+            weaponId=data["weaponId"],
+            chestId=data["chestId"],
+            headId=data["headId"],
+            waistId=data["waistId"],
+            feetId=data["feetId"],
+            handsId=data["handsId"],
+            neckId=data["neckId"],
+            ringId=data["ringId"],
             status=data["status"],
             beastId=data["beast"],
             upgrading=data["upgrading"],
+            gold=data["gold"],
+            lastUpdated=data["lastUpdated"],
         )
 
 
@@ -709,12 +729,12 @@ class Discovery:
     @classmethod
     def from_mongo(cls, data):
         return cls(
-            adventurerId=data["adventurer_id"],
-            discoveryType=data["discovery_type"],
-            subDiscoveryType=data["sub_discovery_type"],
-            entityId=data["entity_id"],
-            outputAmount=data["output_amount"],
-            discoveryTime=data["discovery_time"],
+            adventurerId=data["adventurerId"],
+            discoveryType=data["discoveryType"],
+            subDiscoveryType=data["subDiscoveryType"],
+            entityId=data["entityId"],
+            outputAmount=data["outputAmount"],
+            discoveryTime=data["discoveryTime"],
         )
 
 
@@ -739,22 +759,24 @@ class Beast:
     xp: Optional[FeltValue]
     level: Optional[FeltValue]
     slainOnDate: Optional[datetime]
+    lastUpdated: Optional[datetime]
 
     @classmethod
     def from_mongo(cls, data):
         return cls(
-            id=data["beast_id"],
-            adventurerId=data["adventurer_id"],
-            beast=data["beast_type"],
-            attackType=data["attack_type"],
-            armorType=data["armor_type"],
+            id=data["id"],
+            adventurerId=data["adventurerId"],
+            beast=data["beast"],
+            attackType=data["attackType"],
+            armorType=data["armorType"],
             rank=data["rank"],
-            prefix1=data["prefix_1"],
-            prefix2=data["prefix_2"],
+            prefix1=data["prefix1"],
+            prefix2=data["prefix2"],
             health=data["health"],
             xp=data["xp"],
             level=data["level"],
-            slainOnDate=data["slain_on_date"],
+            slainOnDate=data["slainOnDate"],
+            lastUpdated=data["lastUpdated"],
         )
 
 
@@ -787,31 +809,33 @@ class Item:
     expiry: Optional[datetime]
     bidder: Optional[FeltValue]
     status: Optional[StatusValue]
+    lastUpdated: Optional[datetime]
 
     @classmethod
     def from_mongo(cls, data):
         return cls(
-            id=data["item_id"],
-            marketId=data["market_item_id"],
+            id=data["id"],
+            marketId=data["marketId"],
             owner=data["owner"],
-            claimedTime=data["claimed_time"],
+            claimedTime=data["claimedTime"],
             item=data["item"],
             slot=data["slot"],
             type=data["type"],
             material=data["material"],
             rank=data["rank"],
-            prefix1=data["prefix_1"],
-            prefix2=data["prefix_2"],
+            prefix1=data["prefix1"],
+            prefix2=data["prefix2"],
             suffix=data["suffix"],
             greatness=data["greatness"],
-            createdBlock=data["created_block"],
+            createdBlock=data["createdBlock"],
             xp=data["xp"],
-            adventurerId=data["adventurer_id"],
+            adventurerId=data["adventurerId"],
             bag=data["bag"],
             price=data["price"],
             expiry=data["expiry"],
             bidder=data["bidder"],
             status=data["status"],
+            lastUpdated=data["lastUpdated"],
         )
 
 
