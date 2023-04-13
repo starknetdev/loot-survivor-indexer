@@ -439,21 +439,21 @@ class LootSurvivorIndexer(StarkNetIndexer):
     ):
         ug = decode_update_gold_event(data)
         update_gold_doc = {
-            "adventurer_token_id": check_exists_int(ug.adventurer_token_id),
+            "adventurer_id": check_exists_int(ug.adventurer_token_id),
             "gold": check_exists_int(ug.balance),
             "last_updated": block_time,
         }
         adventurer = await info.storage.find_one(
             "adventurers",
             {
-                "adventurer_token_id": check_exists_int(ug.adventurer_token_id),
+                "adventurer_id": check_exists_int(ug.adventurer_token_id),
             },
         )
         if adventurer:
             await info.storage.find_one_and_update(
                 "adventurers",
                 {
-                    "adventurer_token_id": check_exists_int(ug.adventurer_token_id),
+                    "adventurer_id": check_exists_int(ug.adventurer_token_id),
                 },
                 {"$set": update_gold_doc},
             )

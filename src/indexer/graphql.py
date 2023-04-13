@@ -1113,8 +1113,9 @@ class IndexerGraphQLView(GraphQLView):
         return {"db": self._db}
 
 
-async def run_graphql_api(mongo_url=None, port="8080"):
+async def run_graphql_api(mongo_url=None, port="8080", network="goerli"):
     mongo = MongoClient(mongo_url)
+    config = Config(network=network)
     indexer = LootSurvivorIndexer(config)
     db_name = indexer.indexer_id().replace("-", "_")
     db = mongo[db_name]
@@ -1123,26 +1124,26 @@ async def run_graphql_api(mongo_url=None, port="8080"):
     view = IndexerGraphQLView(db, schema=schema)
 
     app = web.Application()
-    app.router.add_route("*", "/graphql", view)
+    # app.router.add_route("*", "/graphql", view)
 
-    # cors = aiohttp_cors.setup(app)
-    # resource = cors.add(app.router.add_resource("/graphql"))
-    # cors.add(
-    #     resource.add_route("POST", view),
-    #     {
-    #         "*": aiohttp_cors.ResourceOptions(
-    #             expose_headers="*", allow_headers="*", allow_methods="*"
-    #         ),
-    #     },
-    # )
-    # cors.add(
-    #     resource.add_route("GET", view),
-    #     {
-    #         "*": aiohttp_cors.ResourceOptions(
-    #             expose_headers="*", allow_headers="*", allow_methods="*"
-    #         ),
-    #     },
-    # )
+    cors = aiohttp_cors.setup(app)
+    resource = cors.add(app.router.add_resource("/graphql"))
+    cors.add(
+        resource.add_route("POST", view),
+        {
+            "*": aiohttp_cors.ResourceOptions(
+                expose_headers="*", allow_headers="*", allow_methods="*"
+            ),
+        },
+    )
+    cors.add(
+        resource.add_route("GET", view),
+        {
+            "*": aiohttp_cors.ResourceOptions(
+                expose_headers="*", allow_headers="*", allow_methods="*"
+            ),
+        },
+    )
 
     runner = web.AppRunner(app)
     await runner.setup()
