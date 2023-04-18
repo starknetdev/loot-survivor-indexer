@@ -519,6 +519,7 @@ class DiscoveriesFilter:
     entityId: Optional[FeltValueFilter] = None
     outputAmount: Optional[FeltValueFilter] = None
     discoveryTime: Optional[DateTimeFilter] = None
+    txHash: Optional[HexValueFilter] = None
 
 
 @strawberry.input
@@ -605,6 +606,7 @@ class DiscoveriesOrderByInput:
     entityId: Optional[OrderByInput] = None
     outputAmount: Optional[OrderByInput] = None
     discoveryTime: Optional[OrderByInput] = None
+    txHash: Optional[OrderByInput] = None
 
 
 @strawberry.input
@@ -725,6 +727,7 @@ class Discovery:
     entityId: Optional[FeltValue]
     outputAmount: Optional[FeltValue]
     discoveryTime: Optional[datetime]
+    txHash: Optional[HexValue]
 
     @classmethod
     def from_mongo(cls, data):
@@ -735,6 +738,7 @@ class Discovery:
             entityId=data["entityId"],
             outputAmount=data["outputAmount"],
             discoveryTime=data["discoveryTime"],
+            txHash=data["txHash"],
         )
 
 
