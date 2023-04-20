@@ -204,6 +204,9 @@ beast_attacked_abi = {
         {"name": "beast_token_id", "type": "Uint256"},
         {"name": "adventurer_token_id", "type": "Uint256"},
         {"name": "damage", "type": "felt"},
+        {"name": "beast_health", "type": "felt"},
+        {"name": "xp_gained", "type": "felt"},
+        {"name": "gold_reward", "type": "felt"},
     ],
     "keys": [],
     "name": "BeastAttacked",
@@ -215,6 +218,9 @@ adventurer_attacked_abi = {
         {"name": "beast_token_id", "type": "Uint256"},
         {"name": "adventurer_token_id", "type": "Uint256"},
         {"name": "damage", "type": "felt"},
+        {"name": "adventurer_health", "type": "felt"},
+        {"name": "xp_gained", "type": "felt"},
+        {"name": "gold_reward", "type": "felt"},
     ],
     "keys": [],
     "name": "AdventurerAttacked",
@@ -252,6 +258,17 @@ update_gold_balance_abi = {
     "type": "event",
 }
 # LOOT EVENTS
+
+mint_item_abi = {
+    "outputs": [
+        {"name": "item_token_id", "type": "Uint256"},
+        {"name": "to", "type": "felt"},
+        {"name": "adventurer_token_id", "type": "Uint256"},
+    ],
+    "keys": [],
+    "name": "MintItem",
+    "type": "event",
+}
 
 item_update_state_abi = {
     "outputs": [
@@ -463,6 +480,11 @@ def decode_update_gold_event(data):
 
 ## LOOT DECODERS
 
+mint_item_decoder = FunctionCallSerializer(
+    abi=mint_item_abi,
+    identifier_manager=identifier_manager_from_abi([mint_item_abi, uint256_abi]),
+)
+
 item_update_state_decoder = FunctionCallSerializer(
     abi=item_update_state_abi,
     identifier_manager=identifier_manager_from_abi(
@@ -535,3 +557,7 @@ def decode_claim_item_event(data):
 
 def decode_item_merchant_update_event(data):
     return item_merchant_update_decoder.to_python([felt.to_int(d) for d in data])
+
+
+def decode_mint_item_event(data):
+    return mint_item_decoder.to_python([felt.to_int(d) for d in data])

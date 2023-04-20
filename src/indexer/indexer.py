@@ -22,7 +22,9 @@ from indexer.decoder import (
     decode_create_beast_event,
     decode_beast_state_event,
     decode_beast_attacked_event,
+    decode_adventurer_attacked_event,
     decode_update_gold_event,
+    decode_mint_item_event,
     decode_item_state_event,
     decode_claim_item_event,
     decode_item_merchant_update_event,
@@ -45,6 +47,10 @@ root_logger.addHandler(logging.StreamHandler())
 def encode_str_as_bytes(value):
     felt = str_to_felt(value)
     return felt.to_bytes(32, "big")
+
+
+def encode_hex_as_bytes(value):
+    return bytes.fromhex(value.replace("0x", ""))
 
 
 class LootSurvivorIndexer(StarkNetIndexer):
@@ -90,16 +96,22 @@ class LootSurvivorIndexer(StarkNetIndexer):
 
         # loot contract
         for loot_event in [
+            "MintItem",
             "UpdateItemState",
             "ClaimItem",
             "ItemMerchantUpdate",
         ]:
             add_filter(self.config.LOOT_CONTRACT, loot_event)
 
+        if self.config.network == "devnet":
+            finality = DataFinality.DATA_STATUS_ACCEPTED
+        else:
+            finality = DataFinality.DATA_STATUS_PENDING
+
         return IndexerConfiguration(
             filter=filter,
             starting_cursor=starknet_cursor(self.config.STARTING_BLOCK),
-            finality=DataFinality.DATA_STATUS_ACCEPTED,
+            finality=finality,
         )
 
     async def handle_data(self, info: Info, data: Block):
@@ -119,6 +131,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 "BeastAttacked": self.beast_attacked,
                 "AdventurerAttacked": self.adventurer_attacked,
                 "UpdateGoldBalance": self.update_gold,
+                "MintItem": self.mint_item,
                 "UpdateItemState": self.update_item_state,
                 "ClaimItem": self.claim_item,
                 "ItemMerchantUpdate": self.update_merchant_item,
@@ -126,7 +139,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 info,
                 block_time,
                 event.from_address,
-                event_with_tx.transaction.meta.hash,
+                felt.to_hex(event_with_tx.transaction.meta.hash),
                 event.data,
             )
 
@@ -135,7 +148,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data,
     ):
         ma = decode_mint_adventurer_event(data)
@@ -153,7 +166,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data,
     ):
         ua = decode_update_adventurer_state_event(data)
@@ -205,17 +218,17 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data: List[FieldElement],
     ):
         d = decode_discovery_event(data)
         discovery_doc = {
-            "txHash": check_exists_int(tx_hash),
+            "txHash": encode_hex_as_bytes(tx_hash),
             "adventurerId": check_exists_int(d.adventurer_id),
             "discoveryType": check_exists_int(d.discovery_type),
             "subDiscoveryType": check_exists_int(d.sub_discovery_type),
             "entityId": check_exists_int(d.entity_id),
-            "outputAmount": encode_int_as_bytes(d.output_amount),
+            "outputAmount": check_exists_int(d.output_amount),
             "discoveryTime": block_time,
         }
         await info.storage.insert_one("discoveries", discovery_doc)
@@ -339,44 +352,29 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data: List[FieldElement],
     ):
         ba = decode_beast_attacked_event(data)
         attacked_beast_doc = {
-            "txHash": encode_int_as_bytes(tx_hash),
-            "beastTokenId": check_exists_int(ba.beast_token_id),
-            "adventurerTokenId": check_exists_int(ba.adventurer_token_id),
+            "txHash": encode_hex_as_bytes(tx_hash),
+            "beastId": check_exists_int(ba.beast_token_id),
+            "adventurerId": check_exists_int(ba.adventurer_token_id),
+            "attacker": encode_int_as_bytes(1),
             "damage": encode_int_as_bytes(ba.damage),
-            "txHash": tx_hash,
-            "lastUpdated": block_time,
+            "targetHealth": encode_int_as_bytes(ba.beast_health),
+            "xpEarned": encode_int_as_bytes(ba.xp_gained),
+            "goldEarned": encode_int_as_bytes(ba.gold_reward),
+            "timestamp": block_time,
         }
-        battle_state = await info.storage.find_one(
-            "battles",
-            {
-                "beastTokenId": check_exists_int(ba.beast_token_id),
-                "adventurerTokenId": check_exists_int(ba.adventurer_token_id),
-            },
-        )
-        if battle_state:
-            await info.storage.find_one_and_update(
-                "battles",
-                {
-                    "beastTokenId": check_exists_int(ba.beast_token_id),
-                    "adventurerTokenId": check_exists_int(ba.adventurer_token_id),
-                },
-                {"$set": attacked_beast_doc},
-            )
-        else:
-            await info.storage.insert_one("battles", attacked_beast_doc)
+        await info.storage.insert_one("battles", attacked_beast_doc)
         print(
             "- [beast attacked]",
             ba.beast_token_id,
             "->",
             ba.adventurer_token_id,
             "-",
-            ba.damage,
-            "damage",
+            attacked_beast_doc,
         )
 
     async def adventurer_attacked(
@@ -387,43 +385,29 @@ class LootSurvivorIndexer(StarkNetIndexer):
         tx_hash: FieldElement,
         data: List[FieldElement],
     ):
-        aa = decode_beast_attacked_event(data)
+        aa = decode_adventurer_attacked_event(data)
         attacked_adventurer_doc = {
-            "txHash": encode_int_as_bytes(tx_hash),
-            "beastTokenId": check_exists_int(aa.beast_token_id),
-            "adventurerTokenId": check_exists_int(aa.adventurer_token_id),
+            "txHash": encode_hex_as_bytes(tx_hash),
+            "beastId": check_exists_int(aa.beast_token_id),
+            "adventurerId": check_exists_int(aa.adventurer_token_id),
+            "attacker": check_exists_int(2),
             "damage": encode_int_as_bytes(aa.damage),
-            "lastUpdated": block_time,
+            "targetHealth": encode_int_as_bytes(aa.adventurer_health),
+            "xpEarned": encode_int_as_bytes(aa.xp_gained),
+            "goldEarned": encode_int_as_bytes(aa.gold_reward),
+            "timestamp": block_time,
         }
-        battle_state = await info.storage.find_one(
+        await info.storage.insert_one(
             "battles",
-            {
-                "beastTokenId": check_exists_int(aa.beast_token_id),
-                "adventurerTokenId": check_exists_int(aa.adventurer_token_id),
-            },
+            attacked_adventurer_doc,
         )
-        if battle_state:
-            await info.storage.find_one_and_update(
-                "battles",
-                {
-                    "beastTokenId": check_exists_int(aa.beast_token_id),
-                    "adventurerTokenId": check_exists_int(aa.adventurer_token_id),
-                },
-                {"$set": attacked_adventurer_doc},
-            )
-        else:
-            await info.storage.insert_one(
-                "battles",
-                attacked_adventurer_doc,
-            )
         print(
             "- [adventurer attacked]",
             aa.adventurer_token_id,
             "->",
             aa.beast_token_id,
             "-",
-            aa.damage,
-            "damage",
+            attacked_adventurer_doc,
         )
 
     async def update_gold(
@@ -431,7 +415,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data: List[FieldElement],
     ):
         ug = decode_update_gold_event(data)
@@ -461,89 +445,151 @@ class LootSurvivorIndexer(StarkNetIndexer):
             )
         print("- [update gold]", ug.adventurer_token_id, "->", ug.balance, "gold")
 
-    async def update_item_state(
+    async def mint_item(
         self,
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data: List[FieldElement],
     ):
-        ui = decode_item_state_event(data)
+        mi = decode_mint_item_event(data)
         update_item_doc = {
-            "id": check_exists_int(ui.item_id),
-            "item": check_exists_int(ui.item_state["Id"]),
-            "slot": check_exists_int(ui.item_state["Slot"]),
-            "type": check_exists_int(ui.item_state["Type"]),
-            "material": check_exists_int(ui.item_state["Material"]),
-            "rank": check_exists_int(ui.item_state["Rank"]),
-            "prefix1": check_exists_int(ui.item_state["Prefix_1"]),
-            "prefix2": check_exists_int(ui.item_state["Prefix_2"]),
-            "suffix": check_exists_int(ui.item_state["Suffix"]),
-            "greatness": check_exists_int(ui.item_state["Greatness"]),
-            "createdBlock": check_exists_timestamp(ui.item_state["CreatedBlock"]),
-            "xp": encode_int_as_bytes(ui.item_state["XP"]),
-            "adventurerId": check_exists_int(ui.item_state["Adventurer"]),
-            "bag": check_exists_int(ui.item_state["Bag"]),
-            "lastUpdated": block_time,
+            "id": check_exists_int(mi.item_token_id),
+            "owner": check_exists_int(mi.to),
+            "ownerAdventurerId": check_exists_int(mi.adventurer_token_id),
         }
         insert_item_doc = {
             "marketId": None,
-            "id": check_exists_int(ui.item_id),
-            "item": check_exists_int(ui.item_state["Id"]),
-            "slot": check_exists_int(ui.item_state["Slot"]),
-            "type": check_exists_int(ui.item_state["Type"]),
-            "material": check_exists_int(ui.item_state["Material"]),
-            "rank": check_exists_int(ui.item_state["Rank"]),
-            "prefix1": check_exists_int(ui.item_state["Prefix_1"]),
-            "prefix2": check_exists_int(ui.item_state["Prefix_2"]),
-            "suffix": check_exists_int(ui.item_state["Suffix"]),
-            "greatness": check_exists_int(ui.item_state["Greatness"]),
-            "createdBlock": check_exists_timestamp(ui.item_state["CreatedBlock"]),
-            "xp": encode_int_as_bytes(ui.item_state["XP"]),
-            "adventurerId": check_exists_int(ui.item_state["Adventurer"]),
-            "bag": check_exists_int(ui.item_state["Bag"]),
+            "id": check_exists_int(mi.item_token_id),
+            "owner": check_exists_int(mi.to),
+            "ownerAdventurerId": check_exists_int(mi.adventurer_token_id),
+            "item": None,
+            "slot": None,
+            "type": None,
+            "material": None,
+            "rank": None,
+            "prefix1": None,
+            "prefix2": None,
+            "suffix": None,
+            "greatness": None,
+            "createdBlock": None,
+            "xp": None,
+            "equippedAdventurerId": None,
+            "bag": None,
             "price": None,
             "expiry": None,
             "bidder": None,
             "status": None,
+            "claimedTime": None,
             "lastUpdated": block_time,
         }
         item_state = await info.storage.find_one(
             "items",
             {
-                "id": check_exists_int(ui.item_id),
+                "id": check_exists_int(mi.item_token_id),
             },
         )
         if item_state:
             await info.storage.find_one_and_update(
                 "items",
                 {
-                    "id": check_exists_int(ui.item_id),
+                    "id": check_exists_int(mi.item_token_id),
                 },
                 {"$set": update_item_doc},
             )
         else:
             await info.storage.insert_one(
                 "items",
-                update_item_doc,
+                insert_item_doc,
             )
-        print("- [update item state]", ui.item_id, "->", ui.update_item_doc)
+        print("- [mint item]", mi.item_token_id, "->", update_item_doc)
+
+    async def update_item_state(
+        self,
+        info: Info,
+        block_time: datetime,
+        _: FieldElement,
+        tx_hash: str,
+        data: List[FieldElement],
+    ):
+        ui = decode_item_state_event(data)
+        update_item_doc = {
+            "id": check_exists_int(ui.item_token_id),
+            "item": check_exists_int(ui.item["Id"]),
+            "slot": check_exists_int(ui.item["Slot"]),
+            "type": check_exists_int(ui.item["Type"]),
+            "material": check_exists_int(ui.item["Material"]),
+            "rank": check_exists_int(ui.item["Rank"]),
+            "prefix1": check_exists_int(ui.item["Prefix_1"]),
+            "prefix2": check_exists_int(ui.item["Prefix_2"]),
+            "suffix": check_exists_int(ui.item["Suffix"]),
+            "greatness": check_exists_int(ui.item["Greatness"]),
+            "createdBlock": check_exists_int(ui.item["CreatedBlock"]),
+            "xp": encode_int_as_bytes(ui.item["XP"]),
+            "equippedAdventurerId": check_exists_int(ui.item["Adventurer"]),
+            "bag": check_exists_int(ui.item["Bag"]),
+            "lastUpdated": block_time,
+        }
+        insert_item_doc = {
+            "marketId": None,
+            "id": check_exists_int(ui.item_token_id),
+            "owner": None,
+            "ownerAdventurerId": None,
+            "item": check_exists_int(ui.item["Id"]),
+            "slot": check_exists_int(ui.item["Slot"]),
+            "type": check_exists_int(ui.item["Type"]),
+            "material": check_exists_int(ui.item["Material"]),
+            "rank": check_exists_int(ui.item["Rank"]),
+            "prefix1": check_exists_int(ui.item["Prefix_1"]),
+            "prefix2": check_exists_int(ui.item["Prefix_2"]),
+            "suffix": check_exists_int(ui.item["Suffix"]),
+            "greatness": check_exists_int(ui.item["Greatness"]),
+            "createdBlock": check_exists_int(ui.item["CreatedBlock"]),
+            "xp": encode_int_as_bytes(ui.item["XP"]),
+            "equippedAdventurerId": check_exists_int(ui.item["Adventurer"]),
+            "bag": check_exists_int(ui.item["Bag"]),
+            "price": None,
+            "expiry": None,
+            "bidder": None,
+            "status": None,
+            "claimedTime": None,
+            "lastUpdated": block_time,
+        }
+        item_state = await info.storage.find_one(
+            "items",
+            {
+                "id": check_exists_int(ui.item_token_id),
+            },
+        )
+        if item_state:
+            await info.storage.find_one_and_update(
+                "items",
+                {
+                    "id": check_exists_int(ui.item_token_id),
+                },
+                {"$set": update_item_doc},
+            )
+        else:
+            await info.storage.insert_one(
+                "items",
+                insert_item_doc,
+            )
+        print("- [update item state]", ui.item_token_id, "->", update_item_doc)
 
     async def claim_item(
         self,
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data: List[FieldElement],
     ):
         ci = decode_claim_item_event(data)
         claim_item_doc = {
             "marketId": check_exists_int(ci.market_item_id),
             "id": check_exists_int(ci.item_token_id),
-            "adventurerId": check_exists_int(ci.adventurer_token_id),
-            "owner": check_exists_int(ci.owner),
+            "ownerAdventurerId": check_exists_int(ci.adventurer_token_id),
             "claimedTime": block_time,
         }
         await info.storage.find_one_and_update(
@@ -562,7 +608,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         info: Info,
         block_time: datetime,
         _: FieldElement,
-        tx_hash: FieldElement,
+        tx_hash: str,
         data: List[FieldElement],
     ):
         um = decode_item_merchant_update_event(data)
@@ -577,9 +623,9 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "prefix2": check_exists_int(um.item["Prefix_2"]),
             "suffix": check_exists_int(um.item["Suffix"]),
             "greatness": check_exists_int(um.item["Greatness"]),
-            "createdBlock": check_exists_timestamp(um.item["CreatedBlock"]),
+            "createdBlock": check_exists_int(um.item["CreatedBlock"]),
             "xp": encode_int_as_bytes(um.item["XP"]),
-            "adventurerId": check_exists_int(um.item["Adventurer"]),
+            "equippedAdventurerId": check_exists_int(um.item["Adventurer"]),
             "bag": check_exists_int(um.item["Bag"]),
             "price": check_exists_int(um.bid["price"]),
             "expiry": check_exists_timestamp(um.bid["expiry"]),
@@ -591,6 +637,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "marketId": check_exists_int(um.market_item_id),
             "id": None,
             "owner": None,
+            "ownerAdventurerId": None,
             "claimedTime": None,
             "item": check_exists_int(um.item["Id"]),
             "slot": check_exists_int(um.item["Slot"]),
@@ -603,7 +650,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "greatness": check_exists_int(um.item["Greatness"]),
             "createdBlock": check_exists_int(um.item["CreatedBlock"]),
             "xp": encode_int_as_bytes(um.item["XP"]),
-            "adventurerId": check_exists_int(um.item["Adventurer"]),
+            "equippedAdventurerId": check_exists_int(um.item["Adventurer"]),
             "bag": check_exists_int(um.item["Bag"]),
             "price": check_exists_int(um.bid["price"]),
             "expiry": check_exists_timestamp(um.bid["expiry"]),

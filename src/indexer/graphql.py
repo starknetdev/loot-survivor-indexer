@@ -21,8 +21,8 @@ def parse_hex(value):
     return bytes.fromhex(value.replace("0x", ""))
 
 
-def serialize_hex(token_id):
-    return "0x" + token_id.hex()
+def serialize_hex(value):
+    return "0x" + value.hex()
 
 
 def parse_felt(value):
@@ -73,6 +73,26 @@ def serialize_beast(value):
     return config.BEASTS.get(felt)
 
 
+def parse_discovery(value):
+    felt = get_key_by_value(value, config.DISCOVERY_TYPES)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_discovery(value):
+    felt = int.from_bytes(value, "big")
+    return config.DISCOVERY_TYPES.get(felt)
+
+
+def parse_sub_discovery(value):
+    felt = get_key_by_value(value, config.ITEM_DISCOVERY_TYPES)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_sub_discovery(value):
+    felt = int.from_bytes(value, "big")
+    return config.ITEM_DISCOVERY_TYPES.get(felt)
+
+
 def parse_obstacle(value):
     felt = get_key_by_value(value, config.OBSTACLES)
     return felt.to_bytes(32, "big")
@@ -81,6 +101,16 @@ def parse_obstacle(value):
 def serialize_obstacle(value):
     felt = int.from_bytes(value, "big")
     return config.OBSTACLES.get(felt)
+
+
+def parse_attacker(value):
+    felt = get_key_by_value(value, config.ATTACKERS)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_attacker(value):
+    felt = int.from_bytes(value, "big")
+    return config.ATTACKERS.get(felt)
 
 
 def parse_item(value):
@@ -166,6 +196,16 @@ def serialize_slot(value):
     return config.SLOTS.get(felt)
 
 
+def parse_adventurer(value):
+    felt = get_key_by_value(value, config.ATTACKERS)
+    return felt.to_bytes(32, "big")
+
+
+def serialize_adventurer(value):
+    felt = int.from_bytes(value, "big")
+    return config.ATTACKERS.get(felt)
+
+
 HexValue = strawberry.scalar(
     NewType("HexValue", bytes), parse_value=parse_hex, serialize=serialize_hex
 )
@@ -194,10 +234,28 @@ BeastValue = strawberry.scalar(
     NewType("BeastValue", bytes), parse_value=parse_beast, serialize=serialize_beast
 )
 
+DiscoveryValue = strawberry.scalar(
+    NewType("DiscoveryValue", bytes),
+    parse_value=parse_discovery,
+    serialize=serialize_discovery,
+)
+
+SubDiscoveryValue = strawberry.scalar(
+    NewType("SubDiscoveryValue", bytes),
+    parse_value=parse_sub_discovery,
+    serialize=serialize_sub_discovery,
+)
+
 ObstacleValue = strawberry.scalar(
     NewType("ObstacleValue", bytes),
     parse_value=parse_obstacle,
     serialize=serialize_obstacle,
+)
+
+AttackerValue = strawberry.scalar(
+    NewType("AttackerValue", bytes),
+    parse_value=parse_attacker,
+    serialize=serialize_attacker,
 )
 
 ItemValue = strawberry.scalar(
@@ -246,6 +304,12 @@ SlotValue = strawberry.scalar(
     NewType("SlotValue", bytes),
     parse_value=parse_slot,
     serialize=serialize_slot,
+)
+
+AttackerValue = strawberry.scalar(
+    NewType("AttackerValue", bytes),
+    parse_value=parse_adventurer,
+    serialize=serialize_adventurer,
 )
 
 
@@ -344,6 +408,34 @@ class BeastFilter:
 
 
 @strawberry.input
+class DiscoveryFilter:
+    eq: Optional[DiscoveryValue] = None
+    _in: Optional[List[DiscoveryValue]] = None
+    notIn: Optional[DiscoveryValue] = None
+    lt: Optional[DiscoveryValue] = None
+    lte: Optional[DiscoveryValue] = None
+    gt: Optional[DiscoveryValue] = None
+    gte: Optional[DiscoveryValue] = None
+    contains: Optional[DiscoveryValue] = None
+    startsWith: Optional[DiscoveryValue] = None
+    endsWith: Optional[DiscoveryValue] = None
+
+
+@strawberry.input
+class SubDiscoveryFilter:
+    eq: Optional[SubDiscoveryValue] = None
+    _in: Optional[List[SubDiscoveryValue]] = None
+    notIn: Optional[SubDiscoveryValue] = None
+    lt: Optional[SubDiscoveryValue] = None
+    lte: Optional[SubDiscoveryValue] = None
+    gt: Optional[SubDiscoveryValue] = None
+    gte: Optional[SubDiscoveryValue] = None
+    contains: Optional[SubDiscoveryValue] = None
+    startsWith: Optional[SubDiscoveryValue] = None
+    endsWith: Optional[SubDiscoveryValue] = None
+
+
+@strawberry.input
 class ObstacleFilter:
     eq: Optional[ObstacleValue] = None
     _in: Optional[List[ObstacleValue]] = None
@@ -355,6 +447,11 @@ class ObstacleFilter:
     contains: Optional[ObstacleValue] = None
     startsWith: Optional[ObstacleValue] = None
     endsWith: Optional[ObstacleValue] = None
+
+
+@strawberry.input
+class AttackerFilter:
+    eq: Optional[AttackerValue] = None
 
 
 @strawberry.input
@@ -541,8 +638,26 @@ class BeastsFilter:
 
 
 @strawberry.input
+class BattlesFilter:
+    adventurerId: Optional[FeltValueFilter] = None
+    beastId: Optional[FeltValueFilter] = None
+    timestamp: Optional[DateTimeFilter] = None
+    attacker: Optional[AttackerFilter] = None
+    damage: Optional[FeltValueFilter] = None
+    targetHealth: Optional[FeltValueFilter] = None
+    xpEarned: Optional[FeltValueFilter] = None
+    goldEarned: Optional[FeltValueFilter] = None
+    txhash: Optional[HexValueFilter] = None
+
+
+@strawberry.input
 class ItemsFilter:
     id: Optional[FeltValueFilter] = None
+    marketId: Optional[FeltValueFilter] = None
+    owner: Optional[HexValueFilter] = None
+    ownerAdventurerId: Optional[FeltValueFilter] = None
+    claimedTime: Optional[DateTimeFilter] = None
+    item: Optional[ItemFilter] = None
     slot: Optional[StringFilter] = None
     type: Optional[StringFilter] = None
     material: Optional[MaterialFilter] = None
@@ -553,7 +668,7 @@ class ItemsFilter:
     greatness: Optional[FeltValueFilter] = None
     createdBlock: Optional[FeltValueFilter] = None
     xp: Optional[FeltValueFilter] = None
-    adventurerId: Optional[FeltValueFilter] = None
+    equippedAdventurerId: Optional[FeltValueFilter] = None
     bag: Optional[FeltValueFilter] = None
     price: Optional[FeltValueFilter] = None
     expiry: Optional[DateTimeFilter] = None
@@ -626,18 +741,37 @@ class BeastsOrderByInput:
 
 
 @strawberry.input
+class BattlesOrderByInput:
+    adventurerId: Optional[OrderByInput] = None
+    beastId: Optional[OrderByInput] = None
+    timestamp: Optional[OrderByInput] = None
+    attacker: Optional[OrderByInput] = None
+    damage: Optional[OrderByInput] = None
+    targetHealth: Optional[OrderByInput] = None
+    xpEarned: Optional[OrderByInput] = None
+    goldEarned: Optional[OrderByInput] = None
+    txhash: Optional[OrderByInput] = None
+
+
+@strawberry.input
 class ItemsOrderByInput:
     id: Optional[OrderByInput] = None
+    marketId: Optional[OrderByInput] = None
+    owner: Optional[OrderByInput] = None
+    ownerAdventurerId: Optional[OrderByInput] = None
+    claimedTime: Optional[datetime] = None
+    item: Optional[OrderByInput] = None
     slot: Optional[OrderByInput] = None
     type: Optional[OrderByInput] = None
     material: Optional[OrderByInput] = None
     rank: Optional[OrderByInput] = None
-    prefixes: Optional[OrderByInput] = None
+    prefix1: Optional[OrderByInput] = None
+    prefix2: Optional[OrderByInput] = None
     suffix: Optional[OrderByInput] = None
     greatness: Optional[OrderByInput] = None
     createdBlock: Optional[OrderByInput] = None
     xp: Optional[OrderByInput] = None
-    adventurerId: Optional[OrderByInput] = None
+    equippedAdventurerId: Optional[OrderByInput] = None
     bag: Optional[OrderByInput] = None
     price: Optional[OrderByInput] = None
     expiry: Optional[OrderByInput] = None
@@ -722,8 +856,8 @@ class Adventurer:
 @strawberry.type
 class Discovery:
     adventurerId: Optional[FeltValue]
-    discoveryType: Optional[FeltValue]
-    subDiscoveryType: Optional[FeltValue]
+    discoveryType: Optional[DiscoveryValue]
+    subDiscoveryType: Optional[SubDiscoveryValue]
     entityId: Optional[FeltValue]
     outputAmount: Optional[FeltValue]
     discoveryTime: Optional[datetime]
@@ -784,10 +918,31 @@ class Beast:
         )
 
 
-# @strawberry.type
-# class Battles:
-#     adventurer_id: FeltValue
-#     battle_start: datetime
+@strawberry.type
+class Battle:
+    adventurerId: Optional[FeltValue]
+    beastId: Optional[FeltValue]
+    timestamp: Optional[datetime]
+    attacker: Optional[AttackerValue]
+    damage: Optional[FeltValue]
+    targetHealth: Optional[FeltValue]
+    xpEarned: Optional[FeltValue]
+    goldEarned: Optional[FeltValue]
+    txHash: Optional[HexValue]
+
+    @classmethod
+    def from_mongo(cls, data):
+        return cls(
+            adventurerId=data["adventurerId"],
+            beastId=data["beastId"],
+            timestamp=data["timestamp"],
+            attacker=data["attacker"],
+            damage=data["damage"],
+            targetHealth=data["targetHealth"],
+            xpEarned=data["xpEarned"],
+            goldEarned=data["goldEarned"],
+            txHash=data["txHash"],
+        )
 
 
 @strawberry.type
@@ -795,6 +950,7 @@ class Item:
     id: Optional[FeltValue]
     marketId: Optional[FeltValue]
     owner: Optional[HexValue]
+    ownerAdventurerId: Optional[FeltValue]
     claimedTime: Optional[datetime]
     item: Optional[ItemValue]
     slot: Optional[SlotValue]
@@ -807,7 +963,7 @@ class Item:
     greatness: Optional[FeltValue]
     createdBlock: Optional[FeltValue]
     xp: Optional[FeltValue]
-    adventurerId: Optional[FeltValue]
+    equippedAdventurerId: Optional[FeltValue]
     bag: Optional[FeltValue]
     price: Optional[FeltValue]
     expiry: Optional[datetime]
@@ -821,6 +977,7 @@ class Item:
             id=data["id"],
             marketId=data["marketId"],
             owner=data["owner"],
+            ownerAdventurerId=data["ownerAdventurerId"],
             claimedTime=data["claimedTime"],
             item=data["item"],
             slot=data["slot"],
@@ -833,7 +990,7 @@ class Item:
             greatness=data["greatness"],
             createdBlock=data["createdBlock"],
             xp=data["xp"],
-            adventurerId=data["adventurerId"],
+            equippedAdventurerId=data["equippedAdventurerId"],
             bag=data["bag"],
             price=data["price"],
             expiry=data["expiry"],
@@ -929,18 +1086,19 @@ def get_date_filters(where: DateTimeFilter) -> List[Dict]:
     return filter
 
 
+def get_bool_filters(where: BooleanFilter) -> List[Dict]:
+    filter = {}
+    if where.eq:
+        filter = where.eq
+    return filter
+
+
 def process_filters(obj, prefix=None):
     filters = {}
     for key, value in obj.__dict__.items():
         if value is not None:
             filter_key = f"{prefix}.{key}" if prefix else key
-            if isinstance(
-                value, (StringFilter, HexValueFilter, DateTimeFilter, FeltValueFilter)
-            ):
-                filters[filter_key] = value
-            else:
-                sub_filters = process_filters(value, filter_key)
-                filters.update(sub_filters)
+            filters[filter_key] = value
     return filters
 
 
@@ -970,6 +1128,8 @@ def get_adventurers(
                 filter[key] = get_date_filters(value)
             elif isinstance(value, FeltValueFilter):
                 filter[key] = get_felt_filters(value)
+            elif isinstance(value, BooleanFilter):
+                filter[key] = get_bool_filters(value)
 
     sort_options = {k: v for k, v in orderBy.__dict__.items() if v is not None}
 
@@ -1007,7 +1167,11 @@ def get_discoveries(
     if where:
         processed_filters = process_filters(where)
         for key, value in processed_filters.items():
-            if isinstance(value, StringFilter):
+            if (
+                isinstance(value, StringFilter)
+                | isinstance(value, DiscoveryFilter)
+                | isinstance(value, SubDiscoveryFilter)
+            ):
                 filter[key] = get_str_filters(value)
             elif isinstance(value, HexValueFilter):
                 filter[key] = get_hex_filters(value)
@@ -1052,7 +1216,12 @@ def get_beasts(
     if where:
         processed_filters = process_filters(where)
         for key, value in processed_filters.items():
-            if isinstance(value, StringFilter):
+            if (
+                isinstance(value, StringFilter)
+                | isinstance(value, BeastFilter)
+                | isinstance(value, NamePrefixFilter)
+                | isinstance(value, NameSuffixFilter)
+            ):
                 filter[key] = get_str_filters(value)
             elif isinstance(value, HexValueFilter):
                 filter[key] = get_hex_filters(value)
@@ -1081,6 +1250,49 @@ def get_beasts(
     return [Beast.from_mongo(t) for t in query]
 
 
+def get_battles(
+    info,
+    where: Optional[BattlesFilter] = {},
+    limit: Optional[int] = 10,
+    skip: Optional[int] = 0,
+    orderBy: Optional[BattlesOrderByInput] = {},
+) -> List[Beast]:
+    db = info.context["db"]
+
+    filter = {"_chain.valid_to": None}
+
+    if where:
+        processed_filters = process_filters(where)
+        for key, value in processed_filters.items():
+            if isinstance(value, StringFilter) | isinstance(value, AttackerFilter):
+                filter[key] = get_str_filters(value)
+            elif isinstance(value, HexValueFilter):
+                filter[key] = get_hex_filters(value)
+            elif isinstance(value, DateTimeFilter):
+                filter[key] = get_date_filters(value)
+            elif isinstance(value, FeltValueFilter):
+                filter[key] = get_felt_filters(value)
+
+    sort_options = {k: v for k, v in orderBy.__dict__.items() if v is not None}
+
+    sort_var = "updated_at"
+    sort_dir = -1
+
+    for key, value in sort_options.items():
+        if value.asc:
+            sort_var = key
+            sort_dir = 1
+            break
+        if value.desc:
+            sort_var = key
+            sort_dir = -1
+            break
+
+    query = db["battles"].find(filter).skip(skip).limit(limit).sort(sort_var, sort_dir)
+
+    return [Battle.from_mongo(t) for t in query]
+
+
 def get_items(
     info,
     where: Optional[ItemsFilter] = {},
@@ -1095,7 +1307,17 @@ def get_items(
     if where:
         processed_filters = process_filters(where)
         for key, value in processed_filters.items():
-            if isinstance(value, StringFilter):
+            if (
+                isinstance(value, StringFilter)
+                | isinstance(value, ItemFilter)
+                | isinstance(value, SlotFilter)
+                | isinstance(value, TypeFilter)
+                | isinstance(value, MaterialFilter)
+                | isinstance(value, NamePrefixFilter)
+                | isinstance(value, NameSuffixFilter)
+                | isinstance(value, SuffixFilter)
+                | isinstance(value, StatusFilter)
+            ):
                 filter[key] = get_str_filters(value)
             elif isinstance(value, HexValueFilter):
                 filter[key] = get_hex_filters(value)
@@ -1106,7 +1328,6 @@ def get_items(
 
     sort_options = {k: v for k, v in orderBy.__dict__.items() if v is not None}
 
-    filter = {"_chain.valid_to": None}
     sort_var = "updated_at"
     sort_dir = -1
 
@@ -1129,6 +1350,7 @@ class Query:
     adventurers: List[Adventurer] = strawberry.field(resolver=get_adventurers)
     discoveries: List[Discovery] = strawberry.field(resolver=get_discoveries)
     beasts: List[Beast] = strawberry.field(resolver=get_beasts)
+    battles: List[Battle] = strawberry.field(resolver=get_battles)
     items: List[Item] = strawberry.field(resolver=get_items)
 
 
