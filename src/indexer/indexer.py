@@ -23,9 +23,12 @@ from indexer.decoder import (
     decode_beast_state_event,
     decode_beast_attacked_event,
     decode_adventurer_attacked_event,
+    decode_fled_beast_event,
+    decode_adventurer_ambushed_event,
     decode_update_gold_event,
     decode_mint_item_event,
     decode_item_state_event,
+    decode_mint_daily_items_event,
     decode_claim_item_event,
     decode_item_merchant_update_event,
 )
@@ -91,6 +94,8 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "BeastAttacked",
             "AdventurerAttacked",
             "UpdateGoldBalance",
+            "FledBeast",
+            "AdventurerAmbushed",
         ]:
             add_filter(self.config.BEAST_CONTRACT, beast_event)
 
@@ -98,6 +103,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
         for loot_event in [
             "MintItem",
             "UpdateItemState",
+            "MintDailyItems",
             "ClaimItem",
             "ItemMerchantUpdate",
         ]:
@@ -130,9 +136,12 @@ class LootSurvivorIndexer(StarkNetIndexer):
                 "UpdateBeastState": self.update_beast_state,
                 "BeastAttacked": self.beast_attacked,
                 "AdventurerAttacked": self.adventurer_attacked,
+                "FledBeast": self.fled_beast,
+                "AvdenturerAmbushed": self.adventurer_ambushed,
                 "UpdateGoldBalance": self.update_gold,
                 "MintItem": self.mint_item,
                 "UpdateItemState": self.update_item_state,
+                "MintDailyItems": self.mint_daily_items,
                 "ClaimItem": self.claim_item,
                 "ItemMerchantUpdate": self.update_merchant_item,
             }[event_name](
@@ -361,6 +370,8 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "beastId": check_exists_int(ba.beast_token_id),
             "adventurerId": check_exists_int(ba.adventurer_token_id),
             "attacker": encode_int_as_bytes(1),
+            "fled": check_exists_int(0),
+            "ambushed": check_exists_int(0),
             "damage": encode_int_as_bytes(ba.damage),
             "targetHealth": encode_int_as_bytes(ba.beast_health),
             "xpEarned": encode_int_as_bytes(ba.xp_gained),
@@ -391,6 +402,8 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "beastId": check_exists_int(aa.beast_token_id),
             "adventurerId": check_exists_int(aa.adventurer_token_id),
             "attacker": check_exists_int(2),
+            "fled": check_exists_int(0),
+            "ambushed": check_exists_int(0),
             "damage": encode_int_as_bytes(aa.damage),
             "targetHealth": encode_int_as_bytes(aa.adventurer_health),
             "xpEarned": encode_int_as_bytes(aa.xp_gained),
@@ -408,6 +421,76 @@ class LootSurvivorIndexer(StarkNetIndexer):
             aa.beast_token_id,
             "-",
             attacked_adventurer_doc,
+        )
+
+    async def fled_beast(
+        self,
+        info: Info,
+        block_time: datetime,
+        _: FieldElement,
+        tx_hash: FieldElement,
+        data: List[FieldElement],
+    ):
+        fb = decode_fled_beast_event(data)
+        fled_beast_doc = {
+            "txHash": encode_hex_as_bytes(tx_hash),
+            "beastId": check_exists_int(fb.beast_token_id),
+            "adventurerId": check_exists_int(fb.adventurer_token_id),
+            "attacker": check_exists_int(1),
+            "fled": check_exists_int(1),
+            "ambushed": check_exists_int(0),
+            "damage": encode_int_as_bytes(0),
+            "targetHealth": encode_int_as_bytes(0),
+            "xpEarned": encode_int_as_bytes(0),
+            "goldEarned": encode_int_as_bytes(0),
+            "timestamp": block_time,
+        }
+        await info.storage.insert_one(
+            "battles",
+            fled_beast_doc,
+        )
+        print(
+            "- [adventurer fled beast]",
+            fb.adventurer_token_id,
+            "->",
+            fb.beast_token_id,
+            "-",
+            fled_beast_doc,
+        )
+
+    async def adventurer_ambushed(
+        self,
+        info: Info,
+        block_time: datetime,
+        _: FieldElement,
+        tx_hash: FieldElement,
+        data: List[FieldElement],
+    ):
+        aa = decode_adventurer_ambushed_event(data)
+        adventurer_ambushed_doc = {
+            "txHash": encode_hex_as_bytes(tx_hash),
+            "beastId": check_exists_int(aa.beast_token_id),
+            "adventurerId": check_exists_int(aa.adventurer_token_id),
+            "attacker": check_exists_int(2),
+            "fled": check_exists_int(0),
+            "ambushed": check_exists_int(1),
+            "damage": encode_int_as_bytes(aa.damage),
+            "targetHealth": encode_int_as_bytes(aa.adventurer_health),
+            "xpEarned": encode_int_as_bytes(0),
+            "goldEarned": encode_int_as_bytes(0),
+            "timestamp": block_time,
+        }
+        await info.storage.insert_one(
+            "battles",
+            adventurer_ambushed_doc,
+        )
+        print(
+            "- [adventurer ambushed]",
+            aa.adventurer_token_id,
+            "->",
+            aa.beast_token_id,
+            "-",
+            adventurer_ambushed_doc,
         )
 
     async def update_gold(
@@ -577,6 +660,23 @@ class LootSurvivorIndexer(StarkNetIndexer):
             )
         print("- [update item state]", ui.item_token_id, "->", update_item_doc)
 
+    async def mint_daily_items(
+        self,
+        info: Info,
+        block_time: datetime,
+        _: FieldElement,
+        tx_hash: str,
+        data: List[FieldElement],
+    ):
+        mdi = decode_mint_daily_items_event(data)
+        mint_daily_items_doc = {
+            "caller": check_exists_int(mdi.caller),
+            "itemsNumber": check_exists_int(mdi.items_number),
+            "timestamp": block_time,
+        }
+        await info.storage.insert_one("market", mint_daily_items_doc)
+        print("- [mint daily items]", mdi.caller, "->", mdi.items_number)
+
     async def claim_item(
         self,
         info: Info,
@@ -587,21 +687,23 @@ class LootSurvivorIndexer(StarkNetIndexer):
     ):
         ci = decode_claim_item_event(data)
         claim_item_doc = {
-            "marketId": check_exists_int(ci.market_item_id),
+            "marketId": check_exists_int(ci.market_token_id),
             "id": check_exists_int(ci.item_token_id),
             "ownerAdventurerId": check_exists_int(ci.adventurer_token_id),
+            "owner": check_exists_int(ci.owner),
             "claimedTime": block_time,
+            "status": encode_int_as_bytes(0),
         }
         await info.storage.find_one_and_update(
-            "tokens",
+            "items",
             {
-                "marketId": check_exists_int(ci.market_item_id),
+                "marketId": check_exists_int(ci.market_token_id),
             },
             {
                 "$set": claim_item_doc,
             },
         )
-        print("- [claim item]", ci.market_item_id, "->", ci.item_token_id)
+        print("- [claim item]", ci.market_token_id, "->", ci.item_token_id)
 
     async def update_merchant_item(
         self,
@@ -630,7 +732,7 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "price": check_exists_int(um.bid["price"]),
             "expiry": check_exists_timestamp(um.bid["expiry"]),
             "bidder": check_exists_int(um.bid["bidder"]),
-            "status": check_exists_int(um.bid["status"]),
+            "status": encode_int_as_bytes(um.bid["status"]),
             "lastUpdated": block_time,
         }
         insert_merchant_doc = {
@@ -655,18 +757,18 @@ class LootSurvivorIndexer(StarkNetIndexer):
             "price": check_exists_int(um.bid["price"]),
             "expiry": check_exists_timestamp(um.bid["expiry"]),
             "bidder": check_exists_int(um.bid["bidder"]),
-            "status": check_exists_int(um.bid["status"]),
+            "status": encode_int_as_bytes(um.bid["status"]),
             "lastUpdated": block_time,
         }
         market_item = await info.storage.find_one(
-            "tokens",
+            "items",
             {
                 "marketId": check_exists_int(um.market_item_id),
             },
         )
         if market_item:
             await info.storage.find_one_and_update(
-                "tokens",
+                "items",
                 {
                     "marketId": check_exists_int(um.market_item_id),
                 },

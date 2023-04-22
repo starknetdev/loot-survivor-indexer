@@ -230,7 +230,7 @@ adventurer_attacked_abi = {
 fled_beast_abi = {
     "outputs": [
         {"name": "beast_token_id", "type": "Uint256"},
-        {"name": "adventuer_token_id", "type": "Uint256"},
+        {"name": "adventurer_token_id", "type": "Uint256"},
     ],
     "keys": [],
     "name": "FledBeast",
@@ -242,6 +242,7 @@ adventurer_ambushed_abi = {
         {"name": "beast_token_id", "type": "Uint256"},
         {"name": "adventurer_token_id", "type": "Uint256"},
         {"name": "damage", "type": "felt"},
+        {"name": "adventurer_health", "type": "felt"},
     ],
     "keys": [],
     "name": "AdventurerAmbushed",
@@ -316,11 +317,22 @@ item_suffix_assigned_abi = {
     "type": "event",
 }
 
+mint_daily_items_abi = {
+    "outputs": [
+        {"name": "caller", "type": "felt"},
+        {"name": "items_number", "type": "felt"},
+    ],
+    "keys": [],
+    "name": "MintDailyItems",
+    "type": "event",
+}
+
 claim_item_abi = {
     "outputs": [
         {"name": "market_token_id", "type": "Uint256"},
         {"name": "item_token_id", "type": "Uint256"},
         {"name": "adventurer_token_id", "type": "Uint256"},
+        {"name": "owner", "type": "felt"},
     ],
     "keys": [],
     "name": "ClaimItem",
@@ -518,6 +530,11 @@ item_suffix_assigned_decoder = FunctionCallSerializer(
     ),
 )
 
+mint_daily_items_decoder = FunctionCallSerializer(
+    abi=mint_daily_items_abi,
+    identifier_manager=identifier_manager_from_abi([mint_daily_items_abi]),
+)
+
 claim_item_decoder = FunctionCallSerializer(
     abi=claim_item_abi,
     identifier_manager=identifier_manager_from_abi([claim_item_abi, uint256_abi]),
@@ -549,6 +566,10 @@ def decode_item_prefixes_assigned_event(data):
 
 def decode_item_suffix_assigned_event(data):
     return item_suffix_assigned_decoder.to_python([felt.to_int(d) for d in data])
+
+
+def decode_mint_daily_items_event(data):
+    return mint_daily_items_decoder.to_python([felt.to_int(d) for d in data])
 
 
 def decode_claim_item_event(data):
